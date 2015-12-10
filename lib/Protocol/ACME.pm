@@ -1,32 +1,208 @@
 package Protocol::ACME;
 
-use 5.006;
+use 5.007003;
 use strict;
 use warnings;
 
 =head1 NAME
 
-Protocol::ACME - Perl interface to the Let's Encrypt ACME API
+Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
 Version 0.01
 
-=cut
+=head1 SYNOPSIS
+
+ use Protocol::ACME;
+
+ my @names = qw( www.example.com cloud.example.com );
+ my $challenges = { 'www.example.org'   => [ "host1", "~/www/.well-known/acme-challenge" ],
+                    'cloud.example.org' => [ "host2", "/opt/local/www/htdocs/.well-known/acme-challenge" ] };
+
+ eval
+ {
+   my $acme = Protocol::ACME->new( host               => $host,
+                                   account_key        => $account_key_file,
+                                   account_key_format => "PEM" );
+
+   $acme->directory();
+
+   $acme->register();
+
+   $acme->accept_tos();
+
+   for my $domain ( @names )
+   {
+     $acme->authz( $domain );
+
+     $acme->handle_challenge(
+       simple_http_ssh_callback( $challenges->{$domain}->[0],
+                                 $challenges->{$domain}->[1] )
+     );
+
+     $acme->check_challenge();
+   }
+
+   my $cert = $acme->sign( $csr_file );
+ };
+ if ( $@ )
+ {
+   die $@ if ref $@ ne "Protocol::ACME::Exception";
+   print "Error occured: Status: $@->{status},
+                         Detail: $@->{detail},
+                         Type: $@->{type}\n";
+ }
+ else
+ {
+   # do something appropriate with the DER encoded cert
+   print "Success\n";
+ }
+
+=head1 DESCRIPTION
+
+The C<Protocol::ACME> is a class implementing an interface for the
+Let's Encrypt ACME API.
+
+NOTE: This code at this point is functional but should be considered
+'alpha' quality.
+
+The class handles the protocol details behind provisioning a Let's
+Encrypt certificate.
+
+=head1 CONSTRUCTOR METHODS
+
+The following constructor methods are available:
+
+=over 4
+
+=item $acme = Protcol::ACME->new( %options )
+
+This method constructs a new C<Protocl::ACME> object and returns it.
+Key/value pair arguments may be provided to set up the initial state.
+The may be passed in as a hash or a hashref. The following options
+correspond to attribute methods described below. Items markes with
+a * are required.
+
+   KEY                     DEFAULT
+   -----------             --------------------
+   *host                   undef
+   account_key             undef
+   account_key_format      PEM
+   ua                      undef
+
+=back
+
+=head2 MTEHODS
+
+=over
+
+=item load_key( $key_filename, $key_format )
+
+Load a key from disk.  Currently the key needs to be unencrupted.
+Callbacks for handling password protected keys are still to come.
+C<$key_format> is either PEM or DER with PEM as the default.
+
+=item directory()
+
+Loads the directory from the ACME host.  This call must be made first
+before any other calls to the API in order the bootstrap the API
+resource list.
+
+=item register()
+
+Call the new-reg resource and create an account associated with the
+loaded account key.  If that key has already been registered this method
+will gracefully and silently handle that.
+
+=item accept_tos()
+
+In order to use the Let's Encrypt service, the account needs to accept
+the Terms of Service.  This is provided in a link header in response
+to the new-reg ( or reg ) resouce call.  If the TOS have already been
+accepted as indicated by the reg structure returned by the API this
+call will be a noop.
+
+=item authz( $domain )
+
+C<authz> needs to be called for each domain ( called identifiers in
+ACME speak ) in the certifcate.  This included the domain in the subject
+as well as the Subject Alternate Name (SAN) fields.  Each call to
+C<authz> will result in a challenge being issued from Let's Encrypt.
+These challenges need to be handled individually.
+
+=item handle_challenge( $callback )
+
+C<handle_challenge> is called for each challenge issued by C<authz>.
+The callback is provided by the script writer and must take care of
+fulfilling the terms of the challenge.  The callback will be passed
+three arguments:
+
+  fingerprint: the sha256 hex digest of the account key
+  token: the challenge token
+  url: the url returned by the challenge
+
+Fully describing how to handle every challenge type of out of the
+scope of this documentation ( at least for now ) but below is an example
+for handling the simpleHTTP ( http-01 ) challenge.
+
+The following code shows one way to provide a callback ( a closure )
+to handle the http-01 challenge for a particular host.  In this case
+the callback simple uses ssh to put the required string in the correct
+place to be retrieved by Let's Encrypt to check the identifier
+ownership.
+
+ eval {
+   handle_challenge(
+    simple_http_ssh_handler( "sshhost.example.com"
+                             "~/www/.well-known/acme-challenge" ) );
+ };
+ if ( $@ )
+ {
+   die "Challenge callback failed";
+ }
+
+ sub simple_http_ssh_handler
+ {
+   my @args = @_;
+
+    return sub {
+      my $challenge     = shift;
+      my $fingerprint   = shift;
+      my $url           = shift; # unused
+      my $ssh_host      = $args[0];
+      my $challenge_dir = $args[1];
+
+      my $cmd = "ssh -q $ssh_host 'echo $challenge.$fingerprint > $challenge_dir/$challenge'";
+
+      my $output = `$cmd`;
+
+      return $? == 0 ? 0 : 1;
+    };
+ }
+
+
+=item check_challenge()
+
+Called after C<handle_challenge>.  This will poll the challenge status
+resource and will return when the state changes from 'pending'.
+
+=item $cert = sign( $csr )
+
+
+Call C<sign> after the challenge for each domain ( itentifier ) has
+been fulfilled.  C<$csr> is the DER encoded Certificate Signing
+Request ( CSR ).  On success Let's Encrypt will return the DER encoded
+signed certificate.
+
+
+
+
+=back
+
 
 our $VERSION = '0.01';
 
-
-=head1 SYNOPSIS
-
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
-    use Protocol::ACME;
-
-    my $foo = Protocol::ACME->new();
-    ...
 
 
 =head1 EXPORT
@@ -35,6 +211,8 @@ A list of functions that can be exported.  You can delete this section
 if you don't export anything, such as for a purely object-oriented module.
 
 =cut
+
+
 
 package Log::Any::Adapter::AcmeLocal;
 
@@ -111,16 +289,17 @@ package Protocol::ACME;
 
 use strict;
 use warnings;
+use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base64 );
+
 use LWP::UserAgent;
 use JSON;
 use Crypt::OpenSSL::RSA;
 use Crypt::OpenSSL::Bignum;
-use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base64 );
 use Digest::SHA2;
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
 
-use Data::Dumper;
+#use Data::Dumper;
 
 
 my $NONCE_HEADER = "Replay-Nonce";
