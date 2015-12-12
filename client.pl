@@ -61,10 +61,10 @@ else
 }
 
 my $challenges = {
-                    'www.ludin.org'   => Protocol::ACME::Challenge::SimpleSSH->new(
+                    'www.example.org'   => Protocol::ACME::Challenge::SimpleSSH->new(
                       { ssh_host => "bluehost", www_root => "~/www" }
                     ),
-                   'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'cloud.example.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
                  };
