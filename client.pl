@@ -1,6 +1,8 @@
 use strict;
 use warnings;
 use Protocol::ACME;
+use Protocol::ACME::Challenge::SimpleSSH;
+use Protocol::ACME::Challenge::LocalFile;
 use IO::File;
 
 use Convert::X509;
@@ -58,8 +60,14 @@ else
   @names = split( /,/, $names );
 }
 
-my $challenges = { 'www.example.org'   =>   [ "bluehost", "~/www/.well-known/acme-challenge" ],
-                   'cloud.example.org' => [ "home", "/opt/local/www/htdocs/.well-known/acme-challenge" ] };
+my $challenges = {
+                    'www.ludin.org'   => Protocol::ACME::Challenge::SimpleSSH->new(
+                      { ssh_host => "bluehost", www_root => "~/www" }
+                    ),
+                   'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                     { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
+                   )
+                 };
 
 eval
 {
@@ -69,7 +77,7 @@ eval
                                   account_key_format => "PEM" );
 
 
-  
+
   # The fist request of for the directory.  This provides
   # all of the top level resources. All urls needed will come
   # from these resources, the location header, or the link
@@ -93,8 +101,7 @@ eval
   {
     $acme->authz( $domain );
 
-    $acme->handle_challenge( simple_http_ssh_handler( $challenges->{$domain}->[0],
-                                                      $challenges->{$domain}->[1] ) );
+    $acme->handle_challenge( $challenges->{$domain} );
 
     $acme->check_challenge();
   }
@@ -126,25 +133,6 @@ else
 # cert
 # cert_chain
 # revoke
-
-sub simple_http_ssh_handler
-{
-  my @args = @_;
-
-  return sub {
-    my $challenge     = shift;
-    my $fingerprint   = shift;
-    my $ssh_host      = $args[0];
-    my $challenge_dir = $args[1];
-
-    my $cmd = "ssh -q $ssh_host 'echo $challenge.$fingerprint > $challenge_dir/$challenge'";
-
-    # TODO: replace with IO::Pipe
-    my $output = `$cmd`;
-
-    return $? == 0 ? 0 : 1;
-  };
-}
 
 sub pull_identifiers_from_csr
 {

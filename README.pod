@@ -1,0 +1,287 @@
+=head1 NAME
+
+Protocol::ACME - Interface to the Let's Encrypt ACME API
+
+=head1 VERSION
+
+Version 0.01
+
+=head1 SYNOPSIS
+
+ use Protocol::ACME;
+
+ my @names = qw( www.example.com cloud.example.com );
+
+ my $challenges = {
+                    'www.example.com'   => Protocol::ACME::Challenge::SimpleSSH->new(
+                      { ssh_host => "host1", www_root => "~/www" }
+                    ),
+                   'cloud.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                     { ssh_host => "home2", www_root => "/opt/local/www/htdocs" }
+                   )
+                 };
+
+ eval
+ {
+   my $acme = Protocol::ACME->new( host               => $host,
+                                   account_key        => $account_key_file,
+                                   account_key_format => "PEM" );
+
+   $acme->directory();
+
+   $acme->register();
+
+   $acme->accept_tos();
+
+   for my $domain ( @names )
+   {
+     $acme->authz( $domain );
+
+     $acme->handle_challenge( $challenges->{$domain} );
+
+     $acme->check_challenge();
+   }
+
+   my $cert = $acme->sign( $csr_file );
+ };
+ if ( $@ )
+ {
+   die $@ if ref $@ ne "Protocol::ACME::Exception";
+   print "Error occured: Status: $@->{status},
+                         Detail: $@->{detail},
+                         Type: $@->{type}\n";
+ }
+ else
+ {
+   # do something appropriate with the DER encoded cert
+   print "Success\n";
+ }
+
+=head1 DESCRIPTION
+
+The C<Protocol::ACME> is a class implementing an interface for the
+Let's Encrypt ACME API.
+
+NOTE: This code at this point is functional but should be considered
+'alpha' quality.
+
+The class handles the protocol details behind provisioning a Let's
+Encrypt certificate.
+
+=head1 CONSTRUCTOR METHODS
+
+The following constructor methods are available:
+
+=over 4
+
+=item $acme = Protcol::ACME->new( %options )
+
+This method constructs a new C<Protocl::ACME> object and returns it.
+Key/value pair arguments may be provided to set up the initial state.
+The may be passed in as a hash or a hashref. The following options
+correspond to attribute methods described below. Items markes with
+a * are required.
+
+   KEY                     DEFAULT
+   -----------             --------------------
+   *host                   undef
+   account_key             undef
+   account_key_format      PEM
+   ua                      undef
+
+=back
+
+=head2 MTEHODS
+
+=over
+
+=item load_key( $key_filename, $key_format )
+
+Load a key from disk.  Currently the key needs to be unencrupted.
+Callbacks for handling password protected keys are still to come.
+C<$key_format> is either PEM or DER with PEM as the default.
+
+=item directory()
+
+Loads the directory from the ACME host.  This call must be made first
+before any other calls to the API in order the bootstrap the API
+resource list.
+
+=item register()
+
+Call the new-reg resource and create an account associated with the
+loaded account key.  If that key has already been registered this method
+will gracefully and silently handle that.
+
+=item accept_tos()
+
+In order to use the Let's Encrypt service, the account needs to accept
+the Terms of Service.  This is provided in a link header in response
+to the new-reg ( or reg ) resouce call.  If the TOS have already been
+accepted as indicated by the reg structure returned by the API this
+call will be a noop.
+
+=item authz( $domain )
+
+C<authz> needs to be called for each domain ( called identifiers in
+ACME speak ) in the certifcate.  This included the domain in the subject
+as well as the Subject Alternate Name (SAN) fields.  Each call to
+C<authz> will result in a challenge being issued from Let's Encrypt.
+These challenges need to be handled individually.
+
+=item handle_challenge( $challenge_object )
+
+C<handle_challenge> is called for each challenge issued by C<authz>.
+The challenge object must be a subclass of C<Protocol::ACME::Challenge>
+which implements a 'handle' method.  This objects handle method
+will be passed three arguments and is expected to fulfill the
+preconditions for the chosen challenge.  The three areguments
+are:
+
+  fingerprint: the sha256 hex digest of the account key
+  token: the challenge token
+  url: the url returned by the challenge
+
+Fully describing how to handle every challenge type of out of the
+scope of this documentation ( at least for now ).  Two challenge
+classes have been included for reference:
+
+C<Protocol::ACME::Challenge::SimpleSSH> is initialized with the
+ssh host name and the www root for the web server for the http-01
+challenge.  It will ssh to the host and create the file in
+the correct location for challenge fulfillment.
+
+C<Protocol::ACME::Challenge::LocalFile> is initialized with just the
+www root for the web server for the http-01 challenge.  It will
+simply create the challenge file in the correct place on the local
+filesystem.
+
+C<Protocol::ACME::Challenge::Manual> is intended to be run in an
+interactive manner and will stop and prompt the user with the relevant
+information so they can fulfill the challenge manually.
+
+but below is an example for handling the simpleHTTP ( http-01 )
+challenge.
+
+
+=item check_challenge()
+
+Called after C<handle_challenge>.  This will poll the challenge status
+resource and will return when the state changes from 'pending'.
+
+=item $cert = sign( $csr )
+
+
+Call C<sign> after the challenge for each domain ( itentifier ) has
+been fulfilled.  C<$csr> is the DER encoded Certificate Signing
+Request ( CSR ).  On success Let's Encrypt will return the DER encoded
+signed certificate.
+
+
+
+
+=back
+
+
+our $VERSION = '0.01';
+
+
+
+=head1 EXPORT
+
+A list of functions that can be exported.  You can delete this section
+if you don't export anything, such as for a purely object-oriented module.
+
+=head1 SUBROUTINES/METHODS
+
+=head2 function1
+
+=head2 function2
+
+=head1 AUTHOR
+
+Stephen Ludin, C<< <sludin at ludin.org> >>
+
+=head1 BUGS
+
+Please report any bugs or feature requests to C<bug-protocol-acme at rt.cpan.org>, or through
+the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Protocol-ACME>.  I will be notified, and then you'll
+automatically be notified of progress on your bug as I make changes.
+
+
+
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc Protocol::ACME
+
+
+You can also look for information at:
+
+=over 4
+
+=item * RT: CPAN's request tracker (report bugs here)
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Protocol-ACME>
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/Protocol-ACME>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/Protocol-ACME>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/Protocol-ACME/>
+
+=back
+
+
+=head1 ACKNOWLEDGEMENTS
+
+
+=head1 LICENSE AND COPYRIGHT
+
+Copyright 2015 Stephen Ludin.
+
+This program is free software; you can redistribute it and/or modify it
+under the terms of the the Artistic License (2.0). You may obtain a
+copy of the full license at:
+
+L<http://www.perlfoundation.org/artistic_license_2_0>
+
+Any use, modification, and distribution of the Standard or Modified
+Versions is governed by this Artistic License. By using, modifying or
+distributing the Package, you accept this license. Do not use, modify,
+or distribute the Package, if you do not accept this license.
+
+If your Modified Version has been derived from a Modified Version made
+by someone other than you, you are nevertheless required to ensure that
+your Modified Version complies with the requirements of this license.
+
+This license does not grant you the right to use any trademark, service
+mark, tradename, or logo of the Copyright Holder.
+
+This license includes the non-exclusive, worldwide, free-of-charge
+patent license to make, have made, use, offer to sell, sell, import and
+otherwise transfer the Package with respect to any patent claims
+licensable by the Copyright Holder that are necessarily infringed by the
+Package. If you institute patent litigation (including a cross-claim or
+counterclaim) against any party alleging that the Package constitutes
+direct or contributory patent infringement, then this Artistic License
+to you shall terminate on the date that such litigation is filed.
+
+Disclaimer of Warranty: THE PACKAGE IS PROVIDED BY THE COPYRIGHT HOLDER
+AND CONTRIBUTORS "AS IS' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES.
+THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, OR NON-INFRINGEMENT ARE DISCLAIMED TO THE EXTENT PERMITTED BY
+YOUR LOCAL LAW. UNLESS REQUIRED BY LAW, NO COPYRIGHT HOLDER OR
+CONTRIBUTOR WILL BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, OR
+CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THE PACKAGE,
+EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
