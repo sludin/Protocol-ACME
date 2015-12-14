@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Protocol::ACME;
+use Protocol::ACME::Challenge::Manual;
 use Protocol::ACME::Challenge::SimpleSSH;
 use Protocol::ACME::Challenge::LocalFile;
 use IO::File;
@@ -61,10 +62,8 @@ else
 }
 
 my $challenges = {
-                    'www.example.org'   => Protocol::ACME::Challenge::SimpleSSH->new(
-                      { ssh_host => "bluehost", www_root => "~/www" }
-                    ),
-                   'cloud.example.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                    'www.ludin.org'   => Protocol::ACME::Challenge::Manual->new(),
+                   'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
                  };

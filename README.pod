@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.01
+Version 0.01_02
 
 =head1 SYNOPSIS
 
@@ -91,7 +91,7 @@ a * are required.
 
 =back
 
-=head2 MTEHODS
+=head2 METHODS
 
 =over
 
@@ -181,22 +181,6 @@ signed certificate.
 
 
 =back
-
-
-our $VERSION = '0.01';
-
-
-
-=head1 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
-
-=head2 function2
 
 =head1 AUTHOR
 

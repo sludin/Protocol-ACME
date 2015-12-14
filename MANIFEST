@@ -1,9 +1,15 @@
 Changes
 lib/Protocol/ACME.pm
+lib/Protocol/ACME/Challenge.pm
+lib/Protocol/ACME/Challenge/SimpleSSH.pm
+lib/Protocol/ACME/Challenge/LocalFile.pm
+lib/Protocol/ACME/Challenge/Manual.pm
 Makefile.PL
-MANIFEST			This list of files
-README.md
+MANIFEST	
+README.pod
 t/00-load.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t
+client.pl
+maketestcerts.sh

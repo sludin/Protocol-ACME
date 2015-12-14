@@ -3,6 +3,8 @@ package Protocol::ACME::Challenge::SimpleSSH;
 use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 
+our $VERSION = '0.01';
+
 sub new
 {
   my $class = shift;

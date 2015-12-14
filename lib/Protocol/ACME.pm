@@ -4,21 +4,30 @@ use 5.007003;
 use strict;
 use warnings;
 
+our $VERSION = '0.01_02';
+
 =head1 NAME
 
 Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.01
+Version 0.01_02
 
 =head1 SYNOPSIS
 
  use Protocol::ACME;
 
  my @names = qw( www.example.com cloud.example.com );
- my $challenges = { 'www.example.org'   => [ "host1", "~/www/.well-known/acme-challenge" ],
-                    'cloud.example.org' => [ "host2", "/opt/local/www/htdocs/.well-known/acme-challenge" ] };
+
+ my $challenges = {
+                    'www.example.com'   => Protocol::ACME::Challenge::SimpleSSH->new(
+                      { ssh_host => "host1", www_root => "~/www" }
+                    ),
+                   'cloud.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                     { ssh_host => "home2", www_root => "/opt/local/www/htdocs" }
+                   )
+                 };
 
  eval
  {
@@ -36,10 +45,7 @@ Version 0.01
    {
      $acme->authz( $domain );
 
-     $acme->handle_challenge(
-       simple_http_ssh_callback( $challenges->{$domain}->[0],
-                                 $challenges->{$domain}->[1] )
-     );
+     $acme->handle_challenge( $challenges->{$domain} );
 
      $acme->check_challenge();
    }
@@ -93,7 +99,7 @@ a * are required.
 
 =back
 
-=head2 MTEHODS
+=head2 METHODS
 
 =over
 
@@ -131,55 +137,39 @@ as well as the Subject Alternate Name (SAN) fields.  Each call to
 C<authz> will result in a challenge being issued from Let's Encrypt.
 These challenges need to be handled individually.
 
-=item handle_challenge( $callback )
+=item handle_challenge( $challenge_object )
 
 C<handle_challenge> is called for each challenge issued by C<authz>.
-The callback is provided by the script writer and must take care of
-fulfilling the terms of the challenge.  The callback will be passed
-three arguments:
+The challenge object must be a subclass of C<Protocol::ACME::Challenge>
+which implements a 'handle' method.  This objects handle method
+will be passed three arguments and is expected to fulfill the
+preconditions for the chosen challenge.  The three areguments
+are:
 
   fingerprint: the sha256 hex digest of the account key
   token: the challenge token
   url: the url returned by the challenge
 
 Fully describing how to handle every challenge type of out of the
-scope of this documentation ( at least for now ) but below is an example
-for handling the simpleHTTP ( http-01 ) challenge.
+scope of this documentation ( at least for now ).  Two challenge
+classes have been included for reference:
 
-The following code shows one way to provide a callback ( a closure )
-to handle the http-01 challenge for a particular host.  In this case
-the callback simple uses ssh to put the required string in the correct
-place to be retrieved by Let's Encrypt to check the identifier
-ownership.
+C<Protocol::ACME::Challenge::SimpleSSH> is initialized with the
+ssh host name and the www root for the web server for the http-01
+challenge.  It will ssh to the host and create the file in
+the correct location for challenge fulfillment.
 
- eval {
-   handle_challenge(
-    simple_http_ssh_handler( "sshhost.example.com"
-                             "~/www/.well-known/acme-challenge" ) );
- };
- if ( $@ )
- {
-   die "Challenge callback failed";
- }
+C<Protocol::ACME::Challenge::LocalFile> is initialized with just the
+www root for the web server for the http-01 challenge.  It will
+simply create the challenge file in the correct place on the local
+filesystem.
 
- sub simple_http_ssh_handler
- {
-   my @args = @_;
+C<Protocol::ACME::Challenge::Manual> is intended to be run in an
+interactive manner and will stop and prompt the user with the relevant
+information so they can fulfill the challenge manually.
 
-    return sub {
-      my $challenge     = shift;
-      my $fingerprint   = shift;
-      my $url           = shift; # unused
-      my $ssh_host      = $args[0];
-      my $challenge_dir = $args[1];
-
-      my $cmd = "ssh -q $ssh_host 'echo $challenge.$fingerprint > $challenge_dir/$challenge'";
-
-      my $output = `$cmd`;
-
-      return $? == 0 ? 0 : 1;
-    };
- }
+but below is an example for handling the simpleHTTP ( http-01 )
+challenge.
 
 
 =item check_challenge()
@@ -200,18 +190,7 @@ signed certificate.
 
 =back
 
-
-our $VERSION = '0.01';
-
-
-
-=head1 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
 =cut
-
 
 
 package Log::Any::Adapter::AcmeLocal;
@@ -299,7 +278,6 @@ use Digest::SHA2;
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
 
-#use Data::Dumper;
 
 
 my $NONCE_HEADER = "Replay-Nonce";
@@ -483,7 +461,6 @@ sub accept_tos
   }
 
   $log->debug( "Accepting TOS" );
-  # TODO: how needed is this?
   # TODO: check for existance of terms-of-service link
   # TODO: assert on reg url being present
 
@@ -535,8 +512,8 @@ sub authz
 
 sub handle_challenge
 {
-  my $self = shift;
-  my $cb = shift;
+  my $self      = shift;
+  my $challenge = shift;
   my @args = @_;
 
   my $key = $self->{key};
@@ -564,7 +541,7 @@ sub handle_challenge
 
   $log->debug( "Handing challenge for token: $token.$fingerprint" );
 
-  my $ret = $cb->( $token, $fingerprint, @args );
+  my $ret = $challenge->handle( $token, $fingerprint, @args );
 
   if ( $ret == 0 )
   {
@@ -592,8 +569,8 @@ sub check_challenge
 
   my $status_url = $self->{content}->{uri};
 
-  # TODO: check for failuer of challenge check
-  # todo - check for other HTTP failures
+  # TODO: check for failure of challenge check
+  # TODO: check for other HTTP failures
 
   $log->debug( "Polling for challenge fullfillment" );
   while( 1 )
@@ -638,16 +615,11 @@ sub sign
 
   my $cert = $resp->content();
 
-  # TODO: do not just write this out to a file
-#  my $cert_fh = IO::File->new( "cert.der", "w" ) || die $!;
-#  print $cert_fh $cert;
-#  $cert_fh->close();
-
   return $cert;
 }
 
 #############################################################
-### Private functions
+### "Private" functions
 
 sub _request_get
 {
@@ -677,9 +649,9 @@ sub _request_post
   $self->{json} = $resp->content();
 
   eval {
-  $self->{content} = decode_json( $resp->content() );
-};
-  
+    $self->{content} = decode_json( $resp->content() );
+  };
+
   return $resp;
 }
 
@@ -785,16 +757,6 @@ sub der2pem
 }
 
 
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
-
-=cut
-
-
-=head2 function2
-
-=cut
 
 
 =head1 AUTHOR
