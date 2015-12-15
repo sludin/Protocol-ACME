@@ -12,4 +12,5 @@ my $min_tcm = 0.9;
 eval "use Test::CheckManifest $min_tcm";
 plan skip_all => "Test::CheckManifest $min_tcm required" if $@;
 
-ok_manifest();
+ok_manifest( { exclude => ['/.git', '/certs', '/xt', '/Makefile.old', '/out.txt', '/prereq.pl', '/out.html', '/Protocol-ACME-0.01.tar.gz' ],
+               filter => [ qr/~$/, qr/#/ ] } );
