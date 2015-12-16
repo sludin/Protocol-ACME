@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.01_02
+Version 0.02
 
 =head1 SYNOPSIS
 
@@ -177,6 +177,10 @@ been fulfilled.  C<$csr> is the DER encoded Certificate Signing
 Request ( CSR ).  On success Let's Encrypt will return the DER encoded
 signed certificate.
 
+=item revoke( $certfile )
+
+Call C<revoke> to revoke an already issued certificate. C<$certfile>
+must point the a DER encoded form of the certificate.
 
 
 

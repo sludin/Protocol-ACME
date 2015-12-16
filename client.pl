@@ -10,7 +10,8 @@ use Convert::X509;
 
 use Data::Dumper;
 
-my $host = "acme-staging.api.letsencrypt.org";
+my $host = "api.letsencrypt.org.edgekey-staging.net";
+#my $host = "acme-staging.api.letsencrypt.org";
 #my $host = "acme-v01.api.letsencrypt.org";
 
 
@@ -62,7 +63,9 @@ else
 }
 
 my $challenges = {
-                    'www.ludin.org'   => Protocol::ACME::Challenge::Manual->new(),
+                   'www.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                     { ssh_host => "bluehost", www_root => "./www" }
+                   ),
                    'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
@@ -70,10 +73,14 @@ my $challenges = {
 
 eval
 {
+  my $ua = LWP::UserAgent->new();
+  $ua->default_header( "Host" => "acme-staging.api.letsencrypt.org" );
+  $ua->ssl_opts( verify_hostname => 0 );
 
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key        => $account_key_file,
-                                  account_key_format => "PEM" );
+                                  account_key_format => "PEM",
+                                  ua                 => $ua );
 
 
 

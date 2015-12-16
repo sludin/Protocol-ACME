@@ -33,7 +33,7 @@ sub handle
   print "Challenge filename: $challenge\n";
   print "Challenge text: $content\n";
   print "\n";
-  print "Create a file with the above filename and coentn under <WWW>/.well-known/acme-challenge\n";
+  print "Create a file with the above filename and content under <WWW>/.well-known/acme-challenge\n";
   print "where <WWW> is your web server's document root.  Let's Encrypt will make an HTTP request\n";
   print "for this file and confirm that it has the correct content.";
   print "\n";

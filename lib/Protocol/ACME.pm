@@ -4,7 +4,7 @@ use 5.007003;
 use strict;
 use warnings;
 
-our $VERSION = '0.01_02';
+our $VERSION = '0.02';
 
 =head1 NAME
 
@@ -12,7 +12,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.01_02
+Version 0.02
 
 =head1 SYNOPSIS
 
@@ -185,6 +185,10 @@ been fulfilled.  C<$csr> is the DER encoded Certificate Signing
 Request ( CSR ).  On success Let's Encrypt will return the DER encoded
 signed certificate.
 
+=item revoke( $certfile )
+
+Call C<revoke> to revoke an already issued certificate. C<$certfile>
+must point the a DER encoded form of the certificate.
 
 
 
@@ -274,10 +278,13 @@ use LWP::UserAgent;
 use JSON;
 use Crypt::OpenSSL::RSA;
 use Crypt::OpenSSL::Bignum;
+#use Crypt::OpenSSL::EC;
+use Crypt::PK::ECC;
 use Digest::SHA2;
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
 
+use Data::Dumper;
 
 
 my $NONCE_HEADER = "Replay-Nonce";
@@ -307,6 +314,7 @@ sub _init
   }
 
   $self->{host} = $args->{host} if exists $args->{host};
+  $self->{ua} = $args->{ua} if exists $args->{host};
 
   if ( ! exists $self->{ua} )
   {
@@ -450,6 +458,58 @@ sub register
   $self->{reg} = $self->{content};
 }
 
+sub recovery_key
+{
+  # LE does not yet support the key recovery resource
+  # the below can be considered debug code
+
+  die "Let's Encrypt does not yet support key recovery";
+
+  my $self = shift;
+
+  my $keyfile = shift;
+
+
+  my $fh = IO::File->new( $keyfile ) || die "$!: $keyfile";
+
+  my $pem = "";
+  while( <$fh> )
+  {
+    $pem .= $_;
+  }
+  $fh->close();
+
+  my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
+
+  my $der = pem2der( $pem );
+
+  my $pub = Crypt::PK::ECC->new( \$der );
+
+  my $public_json_text = $pub->export_key_jwk('public');
+
+  my $hash = $pub->export_key_jwk( 'public', 1 );
+
+  my $msg = { "resource"     => "reg",
+              "recoveryToken" => {
+                "client"      => { "kty" => "EC",
+                                   "crv" => "P-256",
+                                   "x"   => $hash->{x},
+                                   "y"   => $hash->{y}
+                                 }
+              }
+            };
+
+  my $json = $self->_create_jws( hash_to_json($msg) );
+
+  print Dumper( $msg ), "\n";
+  print $json, "\n";
+
+  my $resp = $self->_request_post( $url, $json );
+
+  print Dumper( $resp );
+
+}
+
 sub accept_tos
 {
   my $self = shift;
@@ -483,6 +543,37 @@ sub accept_tos
   {
     die Protocol::ACME::Exception->new( $self->{content} );
   }
+}
+
+sub revoke
+{
+  my $self = shift;
+  my $certfile = shift;
+
+  $log->debug( "Revoking Cert" );
+
+  my $cert = slurp( $certfile );
+
+  if ( ! $cert )
+  {
+    # TODO: should be an ACME exception
+    die "Could not load cert form $certfile";
+  }
+
+
+  my $msg = hash_to_json( { "resource"    => "revoke-cert",
+                            "certificate" => encode_base64url( $cert ) } );
+
+
+  my $json = $self->_create_jws( $msg );
+
+  my $resp = $self->_request_post( $self->{links}->{'revoke-cert'}, $json );
+
+  if ( $resp->code() != 200 )
+  {
+    die Protocol::ACME::Exception->new( $self->{content} );
+  }
+
 }
 
 sub authz
@@ -665,6 +756,27 @@ sub _create_jws
 
 #############################################################
 ### Helper functions - not class methods
+
+sub slurp
+{
+  my $filename = shift;
+
+  my $fh = IO::File->new( $filename );
+  if ( ! $fh )
+  {
+    return undef;
+  }
+
+  my $content;
+
+  while( <$fh> )
+  {
+    $content .= $_;
+  }
+
+  return $content;
+}
+
 
 sub link_to_hash
 {
