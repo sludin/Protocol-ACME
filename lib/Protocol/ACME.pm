@@ -190,6 +190,10 @@ signed certificate.
 Call C<revoke> to revoke an already issued certificate. C<$certfile>
 must point the a DER encoded form of the certificate.
 
+=item recovery_key()
+
+LE does not yet support recovery keys.  This method will die when
+called.
 
 
 =back
@@ -279,10 +283,12 @@ use JSON;
 use Crypt::OpenSSL::RSA;
 use Crypt::OpenSSL::Bignum;
 #use Crypt::OpenSSL::EC;
-use Crypt::PK::ECC;
+#use Crypt::PK::ECC;
 use Digest::SHA2;
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
+
+use Carp;
 
 use Data::Dumper;
 
@@ -350,22 +356,15 @@ sub load_key
   my $path   = shift;
   my $format = shift || "PEM";
 
-  my $fh = IO::File->new( $path );
-  if ( ! $fh )
+  my $keystring = _slurp( $path );
+  if ( ! $keystring )
   {
-    die Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } );
+    croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
   }
-
-  my $keystring;
-  while( <$fh> )
-  {
-    $keystring .= $_;
-  }
-  $fh->close();
 
   if ( $format eq "DER" )
   {
-    $keystring = der2pem( $keystring, "RSA PRIVATE KEY" );
+    $keystring = _der2pem( $keystring, "RSA PRIVATE KEY" );
     print $keystring;
   }
 
@@ -432,7 +431,7 @@ sub register
 
     if ( $resp->code() == 202 )
     {
-      my $links = link_to_hash( $resp->header( 'link' ) );
+      my $links = _link_to_hash( $resp->header( 'link' ) );
 
       @{$self->{links}}{keys %$links} = values %$links;
     }
@@ -443,7 +442,7 @@ sub register
   }
   elsif ( $resp->code() == 201 )
   {
-    my $links = link_to_hash( $resp->header( 'link' ) );
+    my $links = _link_to_hash( $resp->header( 'link' ) );
 
     @{$self->{links}}{keys %$links} = values %$links;
 
@@ -463,50 +462,44 @@ sub recovery_key
   # LE does not yet support the key recovery resource
   # the below can be considered debug code
 
-  die "Let's Encrypt does not yet support key recovery";
+  # die "Let's Encrypt does not yet support key recovery";
 
-  my $self = shift;
+  # my $self = shift;
 
-  my $keyfile = shift;
+  # my $keyfile = shift;
 
 
-  my $fh = IO::File->new( $keyfile ) || die "$!: $keyfile";
+  # my $pem = _slurp( $keyfile );
+  # croak( Protocol::ACME::Exception->new( { detail => "$keyfile: $!" } ) ) if ! $pem;
 
-  my $pem = "";
-  while( <$fh> )
-  {
-    $pem .= $_;
-  }
-  $fh->close();
+  # my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
-  my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
+  # my $der = _pem2der( $pem );
 
-  my $der = pem2der( $pem );
+  # my $pub = Crypt::PK::ECC->new( \$der );
 
-  my $pub = Crypt::PK::ECC->new( \$der );
+  # my $public_json_text = $pub->export_key_jwk('public');
 
-  my $public_json_text = $pub->export_key_jwk('public');
+  # my $hash = $pub->export_key_jwk( 'public', 1 );
 
-  my $hash = $pub->export_key_jwk( 'public', 1 );
+  # my $msg = { "resource"     => "reg",
+  #             "recoveryToken" => {
+  #               "client"      => { "kty" => "EC",
+  #                                  "crv" => "P-256",
+  #                                  "x"   => $hash->{x},
+  #                                  "y"   => $hash->{y}
+  #                                }
+  #             }
+  #           };
 
-  my $msg = { "resource"     => "reg",
-              "recoveryToken" => {
-                "client"      => { "kty" => "EC",
-                                   "crv" => "P-256",
-                                   "x"   => $hash->{x},
-                                   "y"   => $hash->{y}
-                                 }
-              }
-            };
+  # my $json = $self->_create_jws( _hash_to_json($msg) );
 
-  my $json = $self->_create_jws( hash_to_json($msg) );
+  # print Dumper( $msg ), "\n";
+  # print $json, "\n";
 
-  print Dumper( $msg ), "\n";
-  print $json, "\n";
+  # my $resp = $self->_request_post( $url, $json );
 
-  my $resp = $self->_request_post( $url, $json );
-
-  print Dumper( $resp );
+  # print Dumper( $resp );
 
 }
 
@@ -524,9 +517,9 @@ sub accept_tos
   # TODO: check for existance of terms-of-service link
   # TODO: assert on reg url being present
 
-  my $msg = hash_to_json( { "resource"  => "reg",
-                            "agreement" => $self->{links}->{'terms-of-service'},
-                            "key"       => { "e"   => $self->{key}->{e},
+  my $msg = _hash_to_json( { "resource"  => "reg",
+                             "agreement" => $self->{links}->{'terms-of-service'},
+                             "key"       => { "e"   => $self->{key}->{e},
                                              "kty" => "RSA",
                                              "n"   => $self->{key}->{n} } } );
 
@@ -552,7 +545,7 @@ sub revoke
 
   $log->debug( "Revoking Cert" );
 
-  my $cert = slurp( $certfile );
+  my $cert = _slurp( $certfile );
 
   if ( ! $cert )
   {
@@ -561,7 +554,7 @@ sub revoke
   }
 
 
-  my $msg = hash_to_json( { "resource"    => "revoke-cert",
+  my $msg = _hash_to_json( { "resource"    => "revoke-cert",
                             "certificate" => encode_base64url( $cert ) } );
 
 
@@ -584,7 +577,7 @@ sub authz
   $log->debug( "Sending authz message for $domain" );
   # TODO: check for 'next' URL and that is it authz
 
-  my $msg = hash_to_json( { "identifier" => { "type" => "dns", "value" => $domain },
+  my $msg = _hash_to_json( { "identifier" => { "type" => "dns", "value" => $domain },
                             "resource"   => "new-authz" } );
 
   my $json = $self->_create_jws( $msg );
@@ -609,7 +602,7 @@ sub handle_challenge
 
   my $key = $self->{key};
 
-  my $jwk = hash_to_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
+  my $jwk = _hash_to_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
   my $token;
   my $challenge_url;
 
@@ -651,7 +644,7 @@ sub check_challenge
 {
   my $self = shift;
 
-  my $msg = hash_to_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
+  my $msg = _hash_to_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
 
   my $json = $self->_create_jws( $msg );
 
@@ -693,7 +686,7 @@ sub sign
   $fh->close();
 
 
-  my $msg = hash_to_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
+  my $msg = _hash_to_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
 
   my $json = $self->_create_jws( $msg );
 
@@ -750,14 +743,14 @@ sub _create_jws
 {
   my $self = shift;
   my $msg = shift;
-  return create_jws( $self->{key}, $msg, $self->{nonce} );
+  return _create_jws_internal( $self->{key}, $msg, $self->{nonce} );
 }
 
 
 #############################################################
 ### Helper functions - not class methods
 
-sub slurp
+sub _slurp
 {
   my $filename = shift;
 
@@ -778,7 +771,7 @@ sub slurp
 }
 
 
-sub link_to_hash
+sub _link_to_hash
 {
   my $links;
 
@@ -801,7 +794,7 @@ sub link_to_hash
   return $links;
 }
 
-sub hash_to_json
+sub _hash_to_json
 {
   my $hash = shift;
   my $json = "{";
@@ -814,7 +807,7 @@ sub hash_to_json
     # die "hash_to_json does not handle nested references yet" if ref $hash->{$_};
     if ( ref $hash->{$_} eq "HASH" )
     {
-      $json .= $quote . $_ . $quote . $colon . hash_to_json($hash->{$_}) . $comma;
+      $json .= $quote . $_ . $quote . $colon . _hash_to_json($hash->{$_}) . $comma;
     }
     else
     {
@@ -828,7 +821,7 @@ sub hash_to_json
 }
 
 
-sub create_jws
+sub _create_jws_internal
 {
   my $key = shift;
   my $msg = shift;
@@ -843,21 +836,21 @@ sub create_jws
               payload   => encode_base64url( $msg ),
               signature => $sig };
 
-  my $json = hash_to_json( $jws );
+  my $json = _hash_to_json( $jws );
 
   return $json;
 
 }
 
 
-sub pem2der
+sub _pem2der
 {
   my $pem = shift;
   $pem =~ s/^\-\-\-[^\n]*\n//mg;
   return decode_base64( $pem );
 }
 
-sub der2pem
+sub _der2pem
 {
   my $der = shift;
   my $tag = shift;
