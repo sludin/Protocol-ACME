@@ -31,3 +31,12 @@ WriteMakefile(
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },
 );
+
+sub MY::c_o {
+  return <<'MAKE_FRAG';
+readme:
+	podselect lib/Protocol/ACME.pm > README.pod
+MAKE_FRAG
+}
+
+#sub MY::c_o { "new literal text" }

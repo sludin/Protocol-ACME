@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =head1 SYNOPSIS
 
@@ -182,6 +182,10 @@ signed certificate.
 Call C<revoke> to revoke an already issued certificate. C<$certfile>
 must point the a DER encoded form of the certificate.
 
+=item recovery_key()
+
+LE does not yet support recovery keys.  This method will die when
+called.
 
 
 =back

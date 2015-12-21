@@ -12,7 +12,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 =head1 SYNOPSIS
 
@@ -462,44 +462,44 @@ sub recovery_key
   # LE does not yet support the key recovery resource
   # the below can be considered debug code
 
-  # die "Let's Encrypt does not yet support key recovery";
+  die "Let's Encrypt does not yet support key recovery";
 
-  # my $self = shift;
+  my $self = shift;
 
-  # my $keyfile = shift;
+  my $keyfile = shift;
 
 
-  # my $pem = _slurp( $keyfile );
-  # croak( Protocol::ACME::Exception->new( { detail => "$keyfile: $!" } ) ) if ! $pem;
+  my $pem = _slurp( $keyfile );
+  croak( Protocol::ACME::Exception->new( { detail => "$keyfile: $!" } ) ) if ! $pem;
 
-  # my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
+  my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
-  # my $der = _pem2der( $pem );
+  my $der = _pem2der( $pem );
 
-  # my $pub = Crypt::PK::ECC->new( \$der );
+  my $pub = Crypt::PK::ECC->new( \$der );
 
-  # my $public_json_text = $pub->export_key_jwk('public');
+  my $public_json_text = $pub->export_key_jwk('public');
 
-  # my $hash = $pub->export_key_jwk( 'public', 1 );
+  my $hash = $pub->export_key_jwk( 'public', 1 );
 
-  # my $msg = { "resource"     => "reg",
-  #             "recoveryToken" => {
-  #               "client"      => { "kty" => "EC",
-  #                                  "crv" => "P-256",
-  #                                  "x"   => $hash->{x},
-  #                                  "y"   => $hash->{y}
-  #                                }
-  #             }
-  #           };
+  my $msg = { "resource"     => "reg",
+              "recoveryToken" => {
+                "client"      => { "kty" => "EC",
+                                   "crv" => "P-256",
+                                   "x"   => $hash->{x},
+                                   "y"   => $hash->{y}
+                                 }
+              }
+            };
 
-  # my $json = $self->_create_jws( _hash_to_json($msg) );
+  my $json = $self->_create_jws( _hash_to_json($msg) );
 
-  # print Dumper( $msg ), "\n";
-  # print $json, "\n";
+  print Dumper( $msg ), "\n";
+  print $json, "\n";
 
-  # my $resp = $self->_request_post( $url, $json );
+  my $resp = $self->_request_post( $url, $json );
 
-  # print Dumper( $resp );
+  print Dumper( $resp );
 
 }
 
