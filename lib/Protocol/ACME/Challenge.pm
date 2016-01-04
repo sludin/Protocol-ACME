@@ -1,4 +1,7 @@
-package Protocl::ACME::Challenge;
+package Protocol::ACME::Challenge;
+
+use strict;
+use warnings;
 
 =head1 NAME
 

@@ -10,8 +10,7 @@ use Convert::X509;
 
 use Data::Dumper;
 
-my $host = "api.letsencrypt.org.edgekey-staging.net";
-#my $host = "acme-staging.api.letsencrypt.org";
+my $host = "acme-staging.api.letsencrypt.org";
 #my $host = "acme-v01.api.letsencrypt.org";
 
 
@@ -33,7 +32,8 @@ my $host = "api.letsencrypt.org.edgekey-staging.net";
 #
 #   and then generate with something like:
 #
-#   $ openssl req -new -out test.csr -outform der -key cert_key.pem -config openssl.cnf -reqexts SAN -subj "/CN=domain.example.com" -sha256
+#   $ openssl req -new -out test.csr -outform der -key cert_key.pem -config openssl.cnf \
+#                 -reqexts SAN -subj "/CN=domain.example.com" -sha256
 #
 #   This will create a cert with three domains.  domain.example.com will be in the subject and
 #   domain1.example.com and domain2.example.com will be in the SAN extension.
@@ -80,7 +80,8 @@ eval
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key        => $account_key_file,
                                   account_key_format => "PEM",
-                                  ua                 => $ua );
+                                #  openssl            => "/opt/local/bin/openssl",
+                                  ua                 => $ua, );
 
 
 

@@ -4,7 +4,7 @@ use 5.007003;
 use strict;
 use warnings;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
@@ -12,7 +12,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 =head1 SYNOPSIS
 
@@ -87,7 +87,7 @@ The following constructor methods are available:
 This method constructs a new C<Protocl::ACME> object and returns it.
 Key/value pair arguments may be provided to set up the initial state.
 The may be passed in as a hash or a hashref. The following options
-correspond to attribute methods described below. Items markes with
+correspond to attribute methods described below. Items marked with
 a * are required.
 
    KEY                     DEFAULT
@@ -95,7 +95,17 @@ a * are required.
    *host                   undef
    account_key             undef
    account_key_format      PEM
-   ua                      undef
+   openssl                 undef
+
+B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
+or acme-v01.api.letsencrypt.org
+
+B<account_key>: The filename for the account private key
+
+B<account_key_format>: The format ( PEM or DER ) for the account private key
+
+B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
+be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
 
 =back
 
@@ -280,13 +290,12 @@ use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base
 
 use LWP::UserAgent;
 use JSON;
-use Crypt::OpenSSL::RSA;
-use Crypt::OpenSSL::Bignum;
 #use Crypt::OpenSSL::EC;
 #use Crypt::PK::ECC;
 use Digest::SHA2;
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
+
 
 use Carp;
 
@@ -320,7 +329,8 @@ sub _init
   }
 
   $self->{host} = $args->{host} if exists $args->{host};
-  $self->{ua} = $args->{ua} if exists $args->{host};
+  $self->{ua} = $args->{ua} if exists $args->{us};
+  $self->{openssl} = $args->{openssl} if exists $args->{openssl};
 
   if ( ! exists $self->{ua} )
   {
@@ -356,19 +366,43 @@ sub load_key
   my $path   = shift;
   my $format = shift || "PEM";
 
-  my $keystring = _slurp( $path );
-  if ( ! $keystring )
-  {
-    croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
-  }
 
-  if ( $format eq "DER" )
+  my $key;
+  if ( exists $self->{openssl} )
   {
-    $keystring = _der2pem( $keystring, "RSA PRIVATE KEY" );
-    print $keystring;
+    require Protocol::ACME::OpenSSL;
+    # TODO: DER format for the openssl path?
+    $key = Protocol::ACME::OpenSSL->new_private_key( keyfile => $path,
+                                                     openssl => $self->{openssl} );
   }
+  else
+  {
+    eval
+    {
+      require Crypt::OpenSSL::RSA;
+      require Crypt::OpenSSL::Bignum;
+    };
+    if ( $@ )
+    {
+      die "Invoked usage requires Crypt::OpenSSL::RSA and Crypt::OpenSSL::Bignum. " .
+      "To avoid these dependencies use the openssl parameter when creating the " .
+      "Protocol::ACME object.  This will use a native openssl binary instead.";
+    }
 
-  my $key = Crypt::OpenSSL::RSA->new_private_key($keystring);
+    my $keystring = _slurp( $path );
+    if ( ! $keystring )
+    {
+      croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
+    }
+
+    if ( $format eq "DER" )
+    {
+      $keystring = _der2pem( $keystring, "RSA PRIVATE KEY" );
+      print $keystring;
+    }
+
+    $key = Crypt::OpenSSL::RSA->new_private_key($keystring);
+  }
 
   if ( ! $key )
   {
@@ -394,7 +428,7 @@ sub directory
 
   if ( $resp->code() != 200 )
   {
-    die Protocol::ACME::Exception->new( { detail => "Failed to fetch the directory for $self->{host}" } );
+    die Protocol::ACME::Exception->new( { detail => "Failed to fetch the directory for $self->{host}", resp => $resp } );
   }
 
   my $data = decode_json( $resp->content() );
@@ -757,7 +791,7 @@ sub _slurp
   my $fh = IO::File->new( $filename );
   if ( ! $fh )
   {
-    return undef;
+    return;
   }
 
   my $content;

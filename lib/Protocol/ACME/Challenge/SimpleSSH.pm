@@ -60,6 +60,9 @@ the challenge sent by Let's Encrypt.
 
 =cut
 
+use strict;
+use warnings;
+
 use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 

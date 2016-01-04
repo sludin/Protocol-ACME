@@ -48,6 +48,9 @@ wait for the user to indicate that challenge conditions are met.
 
 =cut
 
+use strict;
+use warnings;
+
 use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 use IO::File;
