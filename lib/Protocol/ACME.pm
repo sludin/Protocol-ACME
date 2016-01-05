@@ -290,16 +290,14 @@ use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base
 
 use LWP::UserAgent;
 use JSON;
-#use Crypt::OpenSSL::EC;
-#use Crypt::PK::ECC;
-use Digest::SHA2;
+# use Crypt::OpenSSL::EC; For key recovery when the API supports it
+# use Crypt::PK::ECC;
+use Digest::SHA qw( sha256 );
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
 
-
 use Carp;
 
-use Data::Dumper;
 
 
 my $NONCE_HEADER = "Replay-Nonce";
@@ -329,7 +327,7 @@ sub _init
   }
 
   $self->{host} = $args->{host} if exists $args->{host};
-  $self->{ua} = $args->{ua} if exists $args->{us};
+  $self->{ua} = $args->{ua} if exists $args->{ua};
   $self->{openssl} = $args->{openssl} if exists $args->{openssl};
 
   if ( ! exists $self->{ua} )
@@ -528,13 +526,9 @@ sub recovery_key
 
   my $json = $self->_create_jws( _hash_to_json($msg) );
 
-  print Dumper( $msg ), "\n";
-  print $json, "\n";
-
   my $resp = $self->_request_post( $url, $json );
 
-  print Dumper( $resp );
-
+  # TODO: This is not complete
 }
 
 sub accept_tos
@@ -652,10 +646,8 @@ sub handle_challenge
     }
   }
 
-  my $sha2obj = new Digest::SHA2 256;
-  $sha2obj->add( $jwk );
 
-  my $fingerprint = encode_base64url($sha2obj->digest());
+  my $fingerprint = encode_base64url( sha256( $jwk ) );
 
   $log->debug( "Handing challenge for token: $token.$fingerprint" );
 

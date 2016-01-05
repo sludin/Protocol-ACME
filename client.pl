@@ -8,6 +8,8 @@ use IO::File;
 
 use Convert::X509;
 
+use LWP::UserAgent;
+
 use Data::Dumper;
 
 my $host = "acme-staging.api.letsencrypt.org";
@@ -63,10 +65,10 @@ else
 }
 
 my $challenges = {
-                   'www.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'www.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "bluehost", www_root => "./www" }
                    ),
-                   'cloud.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
                  };
@@ -80,8 +82,9 @@ eval
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key        => $account_key_file,
                                   account_key_format => "PEM",
-                                #  openssl            => "/opt/local/bin/openssl",
-                                  ua                 => $ua, );
+                                  openssl            => "/opt/local/bin/openssl",
+                                  ua                 => $ua,
+                                );
 
 
 

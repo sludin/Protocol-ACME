@@ -1,5 +1,14 @@
 Revision history for Protocol-ACME
 
+0.04    Mon Jan  4 16:45:02 PST 2016
+        - Added ability to chose between using a local openssl binary
+          for crypto and Crypt::OpenSSL::RSA
+        - Changed from the deprecated Digest::SHA2 to Digest::SHA
+
+0.03    Added Revoke support
+
+0.02    
+
 0.01    Tue Dec  8 17:01:36 PST 2015
         Inital version
 

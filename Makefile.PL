@@ -26,7 +26,7 @@ WriteMakefile(
           'LWP::UserAgent' => '6.13',
           'Crypt::OpenSSL::Bignum' => '0.06',
           'JSON' => '2.90',
-          'Digest::SHA2' => '1.1.1'
+          'Digest::SHA' => '5.9.5'
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },
