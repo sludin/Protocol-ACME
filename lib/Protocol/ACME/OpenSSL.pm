@@ -1,134 +1,101 @@
 package Protocol::ACME::OpenSSL;
 
-
-package Protocol::ACME::OpenSSL::FakeNum;
-
 use strict;
 use warnings;
+
+our $VERSION = '0.02';
 
 sub new
 {
-  my $class = shift;
-  my $self = { value => $_[0] };
-  bless $self, $class;
-  return $self;
+  my ( $class, $openssl_bin ) = @_;
+
+  return bless { _bin => $openssl_bin }, $class;
 }
 
-sub to_bin
+sub run
 {
-  my $self = shift;
-  return $self->{value};
-}
+  my ($self, %opts) = @_;
 
+  my @cmd = @{ $opts{'command'} };
 
-package Protocol::ACME::OpenSSL;
+  local( $!, $^E );
 
-use strict;
-use warnings;
+  my ($crdr, $pwtr) = _pipe_or_die() if length $opts{'stdin'};
 
-use IO::File;
-use IO::Pipe;
+  my ($perr, $cerr) = _pipe_or_die();
+  my ($prdr, $cwtr) = _pipe_or_die();
 
-use IPC::Open2;
-
-use MIME::Base64 qw( encode_base64url );
-use Data::Dumper;
-
-use Carp;
-
-our $VERSION = '0.01';
-
-
-sub _init
-{
-  my $self = shift;
-  my $args;
-
-  if ( @_ == 1 )
+  my $pid = fork();
+  if (!$pid)
   {
-    $args = shift;
-    if ( ref $args ne "HASH" )
-    {
-      croak "Must pass a hash or hashref to challenge constructor";
-    }
-  }
-  else
-  {
-    $args = {@_};
-  }
+    die "Failed to fork(): $!" if !defined $pid;
 
-  for my $required_arg ( qw ( openssl keyfile ) )
-  {
-    if ( ! exists $args->{$required_arg} )
+    close $pwtr;
+    close $perr;
+    close $prdr;
+
+    if (length $opts{'stdin'})
     {
-      croak "Require arg $required_arg missing from constructor";
+      open \*STDIN, '<&=' . fileno($crdr) or do
+      {
+        warn "dup STDIN failed: $!";
+        exit $!;
+      };
     }
-    else
+
+    open \*STDOUT, '>&=' . fileno($cwtr) or do
     {
-      $self->{$required_arg} = $args->{$required_arg};
-    }
+      warn "dup STDOUT failed: $!";
+      exit $!;
+    };
+
+    open \*STDERR, '>&=' . fileno($cerr) or do
+    {
+      warn "dup STDERR failed: $!";
+      exit $!;
+    };
+
+    exec {$self->{_bin}} $self->{_bin}, @cmd or do
+    {
+      warn "exec($self->{_bin}) failed: $!";
+      exit $!;
+    };
   }
 
+  close $crdr;
+  close $cwtr;
+  close $cerr;
 
-}
-
-sub new_private_key
-{
-  my $class = shift;
-  my $self = {};
-  bless $self, $class;
-  $self->_init( @_ );
-
-  my $cmd = "$self->{openssl} pkey -in $self->{keyfile} -noout -text_pub";
-  my $output = `$cmd`;
-
-  my ($modulus)  = $output =~ /^Modulus:([\s0-9a-f:]+)/ms;
-  my ($exponent) = $output =~ /^Exponent: (\d+)/ms;
-
-	$modulus =~ s/[^0-9a-f]//g;
-  $modulus = pack("H*", $modulus);
-  $modulus =~ s/^\x00*//;
-
-  $exponent = pack("N", $exponent);
-	$exponent =~ s/^\x00*//;
-
-  $self->{n} = Protocol::ACME::OpenSSL::FakeNum->new( $modulus );
-  $self->{e} = Protocol::ACME::OpenSSL::FakeNum->new( $exponent );
-
-  return $self;
-}
-
-sub use_sha256_hash
-{
-  # NOOP for compatibility with Crypt::OpenSSL::RSA
-}
-
-sub get_key_parameters
-{
-  my $self = shift;
-  return ( $self->{n}, $self->{e} );
-}
-
-sub sign
-{
-  my $self = shift;
-  my $payload = shift;
-
-  my $cmd = "$self->{openssl} dgst -sha256 -binary -sign $self->{keyfile}";
-
-  my ( $out, $in );
-  my $pid = open2( $out, $in, $cmd );
-
-  print $in $payload;
-  close($in);
-  my $output = "";
-  while( <$out> )
+  if (length $opts{'stdin'})
   {
-    $output .= $_;
+    print {$pwtr} $opts{'stdin'} or die "Failed to write to $self->{_bin}: $!";
+  }
+
+  close $pwtr or die "close() on pipe to $self->{_bin} failed: $!";
+
+  my ($output, $error) = ( q<>, q<> );
+  $output .= $_ while <$prdr>;
+  $error .= $_ while <$perr>;
+
+  close $prdr;
+  close $perr;
+
+  waitpid $pid, 0;
+
+  if ($?)
+  {
+    my $failure = ($? & 0xff) ? "signal $?" : sprintf("error %d", $? >> 8);
+    die "$error\n$self->{_bin} failed: $failure";
   }
 
   return $output;
 }
 
+sub _pipe_or_die
+{
+  pipe( my ($rdr, $wtr) ) or die "pipe() failed $!";
+
+  return ($rdr, $wtr);
+}
 
 1; # End of Protocol::ACME::OpenSSL

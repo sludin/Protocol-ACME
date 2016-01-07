@@ -27,12 +27,23 @@ WriteMakefile(
              },
          },
     },
+    META_MERGE => {
+        'meta-spec' => { version => 2 },
+         resources => {
+             repository => {
+                 type => 'git',
+                 url  => 'https://github.com/sludin/Protocol-ACME.git',
+                 web  => 'https://github.com/sludin/Protocol-ACME',
+             },
+         },
+    },
     PREREQ_PM => {
           'Log::Any::Adapter::Base' => '1.032',
           'Log::Any' => '1.032',
           'Log::Any::Adapter' => '1.032',
           'Log::Any::Adapter::Util' => '1.032',
           'Crypt::OpenSSL::RSA' => '0.28',
+          'Crypt::RSA::Parse' => '0.02',
           'LWP::UserAgent' => '6.13',
           'Crypt::OpenSSL::Bignum' => '0.06',
           'JSON' => '2.90',
