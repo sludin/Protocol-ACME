@@ -32,8 +32,8 @@ Version 0.04
  eval
  {
    my $acme = Protocol::ACME->new( host               => $host,
-                                   account_key        => $account_key_file,
-                                   account_key_format => "PEM" );
+                                   account_key        => $account_key_pem_or_der,
+                                 );
 
    $acme->directory();
 
@@ -94,15 +94,15 @@ a * are required.
    -----------             --------------------
    *host                   undef
    account_key             undef
-   account_key_format      PEM
+   account_key_path        undef
    openssl                 undef
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
 
-B<account_key>: The filename for the account private key
+B<account_key>: The account private key as a string. DER or PEM format. Excludes C<account_key_path>.
 
-B<account_key_format>: The format ( PEM or DER ) for the account private key
+B<account_key_path>: The filesystem path to the account private key. Excludes C<account_key>.
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
@@ -113,11 +113,10 @@ be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
 
 =over
 
-=item load_key( $key_filename, $key_format )
+=item load_key_from_disk( $key_path )
 
-Load a key from disk.  Currently the key needs to be unencrupted.
+Load a key from disk.  Currently the key needs to be unencrypted.
 Callbacks for handling password protected keys are still to come.
-C<$key_format> is either PEM or DER with PEM as the default.
 
 =item directory()
 
@@ -286,6 +285,11 @@ package Protocol::ACME;
 
 use strict;
 use warnings;
+
+use Protocol::ACME::Utils;
+
+use Crypt::RSA::Parse ();
+
 use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base64 );
 
 use LWP::UserAgent;
@@ -342,15 +346,27 @@ sub _init
 
   if ( exists $args->{account_key} )
   {
-    if ( ref $args->{account_key} eq "Crypt::OpenSSL::RSA" )
+    if (defined $args->{account_key_path}) {
+      _throw( detail => "You cannot submit both â€œaccount_keyâ€ and â€œaccount_key_pathâ€ to Protocol::ACME::new()." );
+    }
+
+    if ( UNIVERSAL::isa($args->{account_key}, "Crypt::OpenSSL::RSA") )
     {
       $self->{key} = $args->{account_key};
-      # TODO: add derivitiaves
+      # TODO: add derivatives
     }
     else
     {
-      $self->load_key( $args->{account_key}, $args->{account_key_format} );
+      $self->load_key( $args->{'account_key'} );
     }
+  }
+  elsif (exists $args->{account_key_path})
+  {
+    $self->load_key_from_disk( $args->{account_key_path} );
+  }
+  else
+  {
+    _throw( detail => "You must submit one (and only one) of either â€œaccount_keyâ€ or â€œaccount_key_pathâ€." );
   }
 
   $self->{links}->{directory} = "https://" . $self->{host} . '/directory';
@@ -358,19 +374,37 @@ sub _init
   $self->{nonce} = undef;
 }
 
-sub load_key
+sub _throw
+{
+  my (@args) = @_;
+  die Protocol::ACME::Exception->new( { @args } );
+}
+
+sub load_key_from_disk
 {
   my $self   = shift;
   my $path   = shift;
-  my $format = shift || "PEM";
 
+  my $keystring = _slurp( $path );
+  if ( ! $keystring )
+  {
+    croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
+  }
+
+  return $self->load_key($keystring);
+}
+
+sub load_key
+{
+  my ($self, $keystring) = @_;
 
   my $key;
+
   if ( exists $self->{openssl} )
   {
-    require Protocol::ACME::OpenSSL;
+    require Protocol::ACME::Key;
     # TODO: DER format for the openssl path?
-    $key = Protocol::ACME::OpenSSL->new_private_key( keyfile => $path,
+    $key = Protocol::ACME::Key->new( keystring => $keystring,
                                                      openssl => $self->{openssl} );
   }
   else
@@ -387,15 +421,11 @@ sub load_key
       "Protocol::ACME object.  This will use a native openssl binary instead.";
     }
 
-    my $keystring = _slurp( $path );
-    if ( ! $keystring )
+    if ( !Protocol::ACME::Utils::looks_like_pem($keystring) )
     {
-      croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
-    }
 
-    if ( $format eq "DER" )
-    {
-      $keystring = _der2pem( $keystring, "RSA PRIVATE KEY" );
+      #TODO: This should detect/handle PKCS8-formatted private keys as well.
+      $keystring = Protocol::ACME::Utils::der2pem( $keystring, "RSA PRIVATE KEY" );
       print $keystring;
     }
 
@@ -410,7 +440,8 @@ sub load_key
   $key->use_sha256_hash();
 
   $self->{key}->{key} = $key;
-  my ( $n_b64, $e_b64 ) = map { encode_base64url($_->to_bin()) } $key->get_key_parameters();
+
+  my ( $n_b64, $e_b64 ) = map { encode_base64url(_bigint_to_binary($_)) } $key->get_key_parameters();
   $self->{key}->{n} = $n_b64;
   $self->{key}->{e} = $e_b64;
 
@@ -506,7 +537,7 @@ sub recovery_key
 
   my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
-  my $der = _pem2der( $pem );
+  my $der = Protocol::ACME::Utils::pem2der( $pem );
 
   my $pub = Crypt::PK::ECC->new( \$der );
 
@@ -682,7 +713,7 @@ sub check_challenge
   # TODO: check for failure of challenge check
   # TODO: check for other HTTP failures
 
-  $log->debug( "Polling for challenge fullfillment" );
+  $log->debug( "Polling for challenge fulfillment" );
   while( 1 )
   {
     $log->debug( "Status: $self->{content}->{status}" );
@@ -846,6 +877,18 @@ sub _hash_to_json
   $json .= '}';
 }
 
+sub _bigint_to_binary {
+    my ($bigint) = @_;
+
+    my $hex = substr( $bigint->as_hex(), 2 );
+
+    #Prefix a 0 as needed to get an even number of digits.
+    if (length($hex) % 2) {
+        substr( $hex, 0, 0, 0 );
+    }
+
+    return pack 'H*', $hex;
+}
 
 sub _create_jws_internal
 {
@@ -869,27 +912,6 @@ sub _create_jws_internal
 }
 
 
-sub _pem2der
-{
-  my $pem = shift;
-  $pem =~ s/^\-\-\-[^\n]*\n//mg;
-  return decode_base64( $pem );
-}
-
-sub _der2pem
-{
-  my $der = shift;
-  my $tag = shift;
-
-  my $pem = encode_base64( $der );
-  $pem = "-----BEGIN $tag-----\n" . $pem . "-----END $tag-----\n";
-
-  return $pem;
-}
-
-
-
-
 =head1 AUTHOR
 
 Stephen Ludin, C<< <sludin at ludin.org> >>
@@ -900,7 +922,13 @@ Please report any bugs or feature requests to C<bug-protocol-acme at rt.cpan.org
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Protocol-ACME>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
 
+=head1 REPOSITORY
 
+https://github.com/sludin/Protocol-ACME
+
+=head1 REPOSITORY
+
+https://github.com/sludin/Protocol-ACME
 
 
 =head1 SUPPORT
