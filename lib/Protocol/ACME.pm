@@ -898,7 +898,7 @@ sub _bigint_to_binary {
 
     # TODO: Inelegant hack to deal with different Bignum implementations
     my $hex;
-    if ( ref $bigint eq "Math::BigInt" )
+    if ( UNIVERSAL::isa( $bigint, "Math::BigInt" ) )
     {
       $hex = substr( $bigint->as_hex(), 2 );
       #Prefix a 0 as needed to get an even number of digits.
