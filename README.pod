@@ -213,6 +213,10 @@ automatically be notified of progress on your bug as I make changes.
 
 https://github.com/sludin/Protocol-ACME
 
+=head1 REPOSITORY
+
+https://github.com/sludin/Protocol-ACME
+
 
 =head1 SUPPORT
 
