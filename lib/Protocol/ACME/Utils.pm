@@ -26,7 +26,7 @@ sub der2pem
 sub looks_like_pem
 {
   my ($str) = @_;
-  return (substr($str, 0, 1) eq '-') ? 1 : 0;
+  return (substr($str, 0, 4) eq '----') ? 1 : 0;
 }
 
 1;

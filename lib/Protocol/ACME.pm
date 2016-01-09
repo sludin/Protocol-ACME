@@ -4,6 +4,8 @@ use 5.007003;
 use strict;
 use warnings;
 
+use Data::Dumper;
+
 our $VERSION = '0.05';
 
 =head1 NAME
@@ -405,7 +407,7 @@ sub load_key
     require Protocol::ACME::Key;
     # TODO: DER format for the openssl path?
     $key = Protocol::ACME::Key->new( keystring => $keystring,
-                                                     openssl => $self->{openssl} );
+                                     openssl => $self->{openssl} );
   }
   else
   {
@@ -421,9 +423,12 @@ sub load_key
       "Protocol::ACME object.  This will use a native openssl binary instead.";
     }
 
-    if ( !Protocol::ACME::Utils::looks_like_pem($keystring) )
+#    print Protocol::ACME::Utils::looks_like_pem($keystring), "\n";
+    
+    if ( ! Protocol::ACME::Utils::looks_like_pem($keystring) )
     {
 
+      print "HERE\n";
       #TODO: This should detect/handle PKCS8-formatted private keys as well.
       $keystring = Protocol::ACME::Utils::der2pem( $keystring, "RSA PRIVATE KEY" );
       print $keystring;
@@ -445,6 +450,8 @@ sub load_key
   $self->{key}->{n} = $n_b64;
   $self->{key}->{e} = $e_b64;
 
+#  print $n_b64, "\n";
+  
   $log->debug( "Private key loaded" );
 }
 
@@ -476,6 +483,9 @@ sub register
 
   my $msg = encode_json( { resource => 'new-reg' } );
   my $json = $self->_create_jws( $msg );
+
+#  print $msg, "\n";
+#  print $json, "\n";
 
   $log->debug( "Sending registration message" );
 
@@ -514,6 +524,7 @@ sub register
   }
   else
   {
+#    print Dumper( $resp );
     die Protocol::ACME::Exception->new( $self->{content} );
   }
 
@@ -799,6 +810,10 @@ sub _request_post
 sub _create_jws
 {
   my $self = shift;
+
+#  print Dumper( $self );
+#  exit(0);
+  
   my $msg = shift;
   return _create_jws_internal( $self->{key}, $msg, $self->{nonce} );
 }
@@ -875,19 +890,29 @@ sub _hash_to_json
   $json =~ s/,$//;
 
   $json .= '}';
+
 }
 
 sub _bigint_to_binary {
-    my ($bigint) = @_;
+    my ( $bigint ) = @_;
 
-    my $hex = substr( $bigint->as_hex(), 2 );
-
-    #Prefix a 0 as needed to get an even number of digits.
-    if (length($hex) % 2) {
+    # TODO: Inelegant hack to deal with different Bignum implementations
+    my $hex;
+    if ( ref $bigint eq "Math::BigInt" )
+    {
+      $hex = substr( $bigint->as_hex(), 2 );
+      #Prefix a 0 as needed to get an even number of digits.
+      if (length($hex) % 2) {
         substr( $hex, 0, 0, 0 );
+      }
+
+      return pack 'H*', $hex;
+    }
+    else
+    {
+      $bigint->to_bin();
     }
 
-    return pack 'H*', $hex;
 }
 
 sub _create_jws_internal
@@ -900,6 +925,8 @@ sub _create_jws_internal
 
   my $sig = encode_base64url( $key->{key}->sign( encode_base64url($protected_header) . "." . encode_base64url($msg) ) );
 
+#  print $key->{n}, "\n";
+  
   my $jws = { header    => { alg => "RS256", jwk => { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } },
               protected => encode_base64url( $protected_header ),
               payload   => encode_base64url( $msg ),

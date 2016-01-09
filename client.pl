@@ -65,10 +65,10 @@ else
 }
 
 my $challenges = {
-                   'www.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'www.exmaple.com' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "bluehost", www_root => "./www" }
                    ),
-                   'cloud.ludin.org' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'cloud.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
                  };
@@ -80,9 +80,9 @@ eval
   $ua->ssl_opts( verify_hostname => 0 );
 
   my $acme = Protocol::ACME->new( host               => $host,
-                                  account_key        => $account_key_file,
+                                  account_key_path   => $account_key_file,
                                   account_key_format => "PEM",
-                                  openssl            => "/opt/local/bin/openssl",
+#                                  openssl            => "/opt/local/bin/openssl",
                                   ua                 => $ua,
                                 );
 
