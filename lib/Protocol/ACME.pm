@@ -290,6 +290,7 @@ use warnings;
 
 use Protocol::ACME::Utils;
 
+use Crypt::Format;
 use Crypt::RSA::Parse ();
 
 use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base64 );
@@ -428,9 +429,8 @@ sub load_key
     if ( ! Protocol::ACME::Utils::looks_like_pem($keystring) )
     {
 
-      print "HERE\n";
       #TODO: This should detect/handle PKCS8-formatted private keys as well.
-      $keystring = Protocol::ACME::Utils::der2pem( $keystring, "RSA PRIVATE KEY" );
+      $keystring = Crypt::Format::der2pem( $keystring, "RSA PRIVATE KEY" );
       print $keystring;
     }
 
@@ -548,7 +548,7 @@ sub recovery_key
 
   my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
-  my $der = Protocol::ACME::Utils::pem2der( $pem );
+  my $der = Crypt::Format::pem2der( $pem );
 
   my $pub = Crypt::PK::ECC->new( \$der );
 

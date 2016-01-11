@@ -32,6 +32,7 @@ WriteMakefile(
           'Log::Any' => '1.032',
           'Log::Any::Adapter' => '1.032',
           'Log::Any::Adapter::Util' => '1.032',
+          'Crypt::Format' => 0.04,
           'Crypt::OpenSSL::RSA' => '0.28',
           'Crypt::RSA::Parse' => '0.02',
           'LWP::UserAgent' => '6.13',
