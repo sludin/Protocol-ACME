@@ -1,5 +1,14 @@
 Revision history for Protocol-ACME
+0.07    Mon Jan 10
+        - Moved pem2der, der2pem to external module
 
+0.06    Sun Jan  9
+        - Fixed REPOSITIRY section of POD
+
+0.05    Sat Jan  8
+        - More flexibility between using PEM and DER
+        - Keys can be passed in via buffer
+        
 0.04    Mon Jan  4 16:45:02 PST 2016
         - Added ability to chose between using a local openssl binary
           for crypto and Crypt::OpenSSL::RSA

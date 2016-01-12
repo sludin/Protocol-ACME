@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.05';
+our $VERSION = '0.07';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.05
+Version 0.07
 
 =head1 SYNOPSIS
 
@@ -953,10 +953,6 @@ automatically be notified of progress on your bug as I make changes.
 
 https://github.com/sludin/Protocol-ACME
 
-=head1 REPOSITORY
-
-https://github.com/sludin/Protocol-ACME
-
 
 =head1 SUPPORT
 
@@ -988,7 +984,12 @@ L<http://search.cpan.org/dist/Protocol-ACME/>
 =back
 
 
+=head1 CONTRIBUTORS
+
+Felipe Gasper, C<< <felipe at felipegasper.com> >>
+
 =head1 ACKNOWLEDGEMENTS
+
 
 
 =head1 LICENSE AND COPYRIGHT
