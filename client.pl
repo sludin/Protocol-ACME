@@ -8,12 +8,10 @@ use IO::File;
 
 use Convert::X509;
 
-use LWP::UserAgent;
-
 use Data::Dumper;
 
-my $host = "acme-staging.api.letsencrypt.org";
-#my $host = "acme-v01.api.letsencrypt.org";
+#my $host = "acme-staging.api.letsencrypt.org";
+my $host = "acme-v01.api.letsencrypt.org";
 
 
 # Usage:
@@ -65,25 +63,21 @@ else
 }
 
 my $challenges = {
-                   'www.exmaple.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'www.example.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "bluehost", www_root => "./www" }
                    ),
-                   'cloud.example.com' => Protocol::ACME::Challenge::SimpleSSH->new(
+                   'cloud.example.org' => Protocol::ACME::Challenge::SimpleSSH->new(
                      { ssh_host => "home", www_root => "/opt/local/www/htdocs" }
                    )
                  };
 
 eval
 {
-  my $ua = LWP::UserAgent->new();
-  $ua->default_header( "Host" => "acme-staging.api.letsencrypt.org" );
-  $ua->ssl_opts( verify_hostname => 0 );
 
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key_path   => $account_key_file,
                                   account_key_format => "PEM",
-#                                  openssl            => "/opt/local/bin/openssl",
-                                  ua                 => $ua,
+                                  #openssl            => "/opt/local/bin/openssl",
                                 );
 
 

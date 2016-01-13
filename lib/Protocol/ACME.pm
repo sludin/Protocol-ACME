@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =head1 SYNOPSIS
 
@@ -98,6 +98,7 @@ a * are required.
    account_key             undef
    account_key_path        undef
    openssl                 undef
+   ua                      HTTP::Tiny->new()
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
@@ -108,6 +109,8 @@ B<account_key_path>: The filesystem path to the account private key. Excludes C<
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
+
+B<ua>: An HTTP::Tiny object customized as you see fit
 
 =back
 
@@ -295,10 +298,8 @@ use Crypt::RSA::Parse ();
 
 use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base64 );
 
-use LWP::UserAgent;
+use HTTP::Tiny;
 use JSON;
-# use Crypt::OpenSSL::EC; For key recovery when the API supports it
-# use Crypt::PK::ECC;
 use Digest::SHA qw( sha256 );
 use Log::Any qw( $log );
 use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
@@ -306,8 +307,8 @@ use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
 use Carp;
 
 
-
-my $NONCE_HEADER = "Replay-Nonce";
+my $USERAGENT = "Protocol::ACME v$VERSION";
+my $NONCE_HEADER = "replay-nonce";
 
 sub new
 {
@@ -339,18 +340,18 @@ sub _init
 
   if ( ! exists $self->{ua} )
   {
-    $self->{ua} = LWP::UserAgent->new();
+    $self->{ua} = HTTP::Tiny->new( agent => $USERAGENT, verify_SSL => 1 );
   }
 
   if ( ! exists $self->{host} )
   {
-    die Protocol::ACME::Exception->new( { detail => "host parameter is required for Protocol::ACME::new" } );
+    _throw( detail => "host parameter is required for Protocol::ACME::new" );
   }
 
   if ( exists $args->{account_key} )
   {
     if (defined $args->{account_key_path}) {
-      _throw( detail => "You cannot submit both â€œaccount_keyâ€ and â€œaccount_key_pathâ€ to Protocol::ACME::new()." );
+      _throw( detail => "You cannot submit both account_key and account_key_patho Protocol::ACME::new()." );
     }
 
     if ( UNIVERSAL::isa($args->{account_key}, "Crypt::OpenSSL::RSA") )
@@ -369,7 +370,7 @@ sub _init
   }
   else
   {
-    _throw( detail => "You must submit one (and only one) of either â€œaccount_keyâ€ or â€œaccount_key_pathâ€." );
+    _throw( detail => "You must submit one (and only one) of either account_keyr account_key_path." );
   }
 
   $self->{links}->{directory} = "https://" . $self->{host} . '/directory';
@@ -380,7 +381,7 @@ sub _init
 sub _throw
 {
   my (@args) = @_;
-  die Protocol::ACME::Exception->new( { @args } );
+  croak Protocol::ACME::Exception->new( { @args } );
 }
 
 sub load_key_from_disk
@@ -391,7 +392,7 @@ sub load_key_from_disk
   my $keystring = _slurp( $path );
   if ( ! $keystring )
   {
-    croak( Protocol::ACME::Exception->new( { detail => "Could not open the key file ($path): $!" } ) );
+    _throw( detail => "Could not open the key file ($path): $!" );
   }
 
   return $self->load_key($keystring);
@@ -424,11 +425,8 @@ sub load_key
       "Protocol::ACME object.  This will use a native openssl binary instead.";
     }
 
-#    print Protocol::ACME::Utils::looks_like_pem($keystring), "\n";
-    
     if ( ! Protocol::ACME::Utils::looks_like_pem($keystring) )
     {
-
       #TODO: This should detect/handle PKCS8-formatted private keys as well.
       $keystring = Crypt::Format::der2pem( $keystring, "RSA PRIVATE KEY" );
       print $keystring;
@@ -450,8 +448,6 @@ sub load_key
   $self->{key}->{n} = $n_b64;
   $self->{key}->{e} = $e_b64;
 
-#  print $n_b64, "\n";
-  
   $log->debug( "Private key loaded" );
 }
 
@@ -462,14 +458,17 @@ sub directory
 
   my $resp = $self->_request_get( $self->{links}->{directory} );
 
-  if ( $resp->code() != 200 )
+
+
+  if ( $resp->{status} != 200 )
   {
     die Protocol::ACME::Exception->new( { detail => "Failed to fetch the directory for $self->{host}", resp => $resp } );
   }
 
-  my $data = decode_json( $resp->content() );
+  my $data = decode_json( $resp->{content} );
 
   @{$self->{links}}{keys %$data} = values %$data;
+
 
   $log->debug( "Let's Encrypt Directories loaded." );
 }
@@ -484,16 +483,13 @@ sub register
   my $msg = encode_json( { resource => 'new-reg' } );
   my $json = $self->_create_jws( $msg );
 
-#  print $msg, "\n";
-#  print $json, "\n";
-
   $log->debug( "Sending registration message" );
 
   my $resp = $self->_request_post( $self->{links}->{'new-reg'}, $json );
 
-  if ( $resp->code() == 409 )
+  if ( $resp->{status} == 409 )
   {
-    $self->{links}->{'reg'} = $resp->header( 'location' );
+    $self->{links}->{'reg'} = $resp->{headers}->{'location'};
 
     $log->debug( "Known key used" );
     $log->debug( "Refetching with location URL" );
@@ -502,9 +498,9 @@ sub register
 
     $resp = $self->_request_post( $self->{links}->{'reg'}, $json );
 
-    if ( $resp->code() == 202 )
+    if ( $resp->{status} == 202 )
     {
-      my $links = _link_to_hash( $resp->header( 'link' ) );
+      my $links = _link_to_hash( $resp->{headers}->{'link'} );
 
       @{$self->{links}}{keys %$links} = values %$links;
     }
@@ -513,20 +509,20 @@ sub register
       die Protocol::ACME::Exception->new( $self->{content} );
     }
   }
-  elsif ( $resp->code() == 201 )
+  elsif ( $resp->{status} == 201 )
   {
-    my $links = _link_to_hash( $resp->header( 'link' ) );
+    my $links = _link_to_hash( $resp->{headers}->{'link'} );
 
     @{$self->{links}}{keys %$links} = values %$links;
 
-    $self->{links}->{'reg'} = $resp->header( 'location' );
+    $self->{links}->{'reg'} = $resp->{headers}->{'location'};
     $log->debug( "New key used" );
   }
   else
   {
-#    print Dumper( $resp );
     die Protocol::ACME::Exception->new( $self->{content} );
   }
+
 
   $self->{reg} = $self->{content};
 }
@@ -558,11 +554,11 @@ sub recovery_key
 
   my $msg = { "resource"     => "reg",
               "recoveryToken" => {
-                "client"      => { "kty" => "EC",
-                                   "crv" => "P-256",
-                                   "x"   => $hash->{x},
-                                   "y"   => $hash->{y}
-                                 }
+                "client"       => { "kty" => "EC",
+                                    "crv" => "P-256",
+                                    "x"   => $hash->{x},
+                                    "y"   => $hash->{y}
+                                  }
               }
             };
 
@@ -598,7 +594,7 @@ sub accept_tos
 
   my $resp = $self->_request_post( $self->{links}->{'reg'}, $json );
 
-  if ( $resp->code() == 202 )
+  if ( $resp->{status} == 202 )
   {
     $log->debug( "Accepted TOS" );
   }
@@ -632,7 +628,7 @@ sub revoke
 
   my $resp = $self->_request_post( $self->{links}->{'revoke-cert'}, $json );
 
-  if ( $resp->code() != 200 )
+  if ( $resp->{status} != 200 )
   {
     die Protocol::ACME::Exception->new( $self->{content} );
   }
@@ -654,7 +650,7 @@ sub authz
 
   my $resp = $self->_request_post( $self->{links}->{next}, $json );
 
-  if ( $resp->code() == 201 )
+  if ( $resp->{status} == 201 )
   {
     $self->{challenges} = $self->{content}->{challenges};
   }
@@ -745,6 +741,9 @@ sub sign
   my $self = shift;
   my $csr = shift;
 
+  $log->debug( "Signing" );
+
+  # TODO: slurp
   my $fh = IO::File->new( $csr ) || die $!;
   my $der;
   while( <$fh> )
@@ -760,12 +759,12 @@ sub sign
 
   my $resp = $self->_request_post( $self->{links}->{'new-cert'}, $json );
 
-  if ( $resp->code() != 201 )
+  if ( $resp->{status} != 201 )
   {
     die Protocol::ACME::Exception->new( $self->{content} );
   }
 
-  my $cert = $resp->content();
+  my $cert = $resp->{content};
 
   return $cert;
 }
@@ -780,12 +779,15 @@ sub _request_get
 
   my $resp = $self->{ua}->get( $url );
 
-  $self->{nonce} = $resp->header( $NONCE_HEADER );
-  $self->{json} = $resp->content();
+#  print STDERR Dumper( $resp );
+#  print Dumper( $resp );
 
-    eval {
-$self->{content} = decode_json( $resp->content() );
-};
+  $self->{nonce} = $resp->{headers}->{$NONCE_HEADER};
+  $self->{json} = $resp->{content};
+
+  eval {
+    $self->{content} = decode_json( $resp->{content} );
+  };
   return $resp;
 }
 
@@ -795,13 +797,14 @@ sub _request_post
   my $url     = shift;
   my $content = shift;
 
-  my $resp = $self->{ua}->post( $url, Content => $content );
+  my $resp = $self->{ua}->post( $url, { content => $content } );
 
-  $self->{nonce} = $resp->header( $NONCE_HEADER );
-  $self->{json} = $resp->content();
+  $self->{nonce} = $resp->{headers}->{$NONCE_HEADER};
+
+  $self->{json} = $resp->{content};
 
   eval {
-    $self->{content} = decode_json( $resp->content() );
+    $self->{content} = decode_json( $resp->{content} );
   };
 
   return $resp;
@@ -811,9 +814,6 @@ sub _create_jws
 {
   my $self = shift;
 
-#  print Dumper( $self );
-#  exit(0);
-  
   my $msg = shift;
   return _create_jws_internal( $self->{key}, $msg, $self->{nonce} );
 }
@@ -845,9 +845,10 @@ sub _slurp
 
 sub _link_to_hash
 {
+  my $arrayref = shift;
   my $links;
 
-  for my $link ( @_ )
+  for my $link ( @$arrayref )
   {
     my ( $value, $key ) = split( ';', $link );
     my ($url) = $value =~ /<([^>]*)>/;
@@ -925,8 +926,6 @@ sub _create_jws_internal
 
   my $sig = encode_base64url( $key->{key}->sign( encode_base64url($protected_header) . "." . encode_base64url($msg) ) );
 
-#  print $key->{n}, "\n";
-  
   my $jws = { header    => { alg => "RS256", jwk => { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } },
               protected => encode_base64url( $protected_header ),
               payload   => encode_base64url( $msg ),

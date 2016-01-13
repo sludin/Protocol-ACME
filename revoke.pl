@@ -25,16 +25,11 @@ if ( ! $account_key_file or ! $cert_file )
 
 eval
 {
-  # Creating a LWP::USerAgent is not strictly necessary but
-  # this provides some flexbilty and test coverage
-  my $ua = LWP::UserAgent->new();
-  $ua->default_header( "Host" => "acme-staging.api.letsencrypt.org" );
-  $ua->ssl_opts( verify_hostname => 0 );
 
   my $acme = Protocol::ACME->new( host               => $host,
-                                  account_key        => $account_key_file,
+                                  account_key_path   => $account_key_file,
                                   account_key_format => "PEM",  # PEM is the default
-                                  ua                 => $ua );
+                                  #ua                 => $ua );
 
 
   $acme->directory();

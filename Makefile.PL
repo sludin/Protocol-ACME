@@ -35,10 +35,10 @@ WriteMakefile(
           'Crypt::Format' => '0.04',
           'Crypt::OpenSSL::RSA' => '0.28',
           'Crypt::RSA::Parse' => '0.02',
-          'LWP::UserAgent' => '6.13',
           'Crypt::OpenSSL::Bignum' => '0.06',
           'JSON' => '2.90',
-          'Digest::SHA' => '5.9.5'
+          'Digest::SHA' => '5.9.5',
+          'HTTP::Tiny' => '0.054',
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },
@@ -52,4 +52,4 @@ readme:
 MAKE_FRAG
 }
 
-#sub MY::c_o { "new literal text" }
+
