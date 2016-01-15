@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.07
+Version 0.08
 
 =head1 SYNOPSIS
 
@@ -88,6 +88,7 @@ a * are required.
    account_key             undef
    account_key_path        undef
    openssl                 undef
+   ua                      HTTP::Tiny->new()
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
@@ -98,6 +99,8 @@ B<account_key_path>: The filesystem path to the account private key. Excludes C<
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
+
+B<ua>: An HTTP::Tiny object customized as you see fit
 
 =back
 
