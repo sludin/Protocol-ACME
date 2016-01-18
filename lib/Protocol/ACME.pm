@@ -260,6 +260,17 @@ foreach my $method ( Log::Any::Adapter::Util::detection_methods() ) {
 
 package Protocol::ACME::Exception;
 
+use Data::Dumper;
+
+# very simple stringification ... make this
+# more elaborate according to taste
+use overload ('""' => \&stringify);
+sub stringify
+{
+    my $self = shift;
+    return ref($self).' error: '.Dumper $self;
+}
+
 sub new
 {
   my $class = shift;
@@ -284,7 +295,6 @@ sub new
 
   return $self;
 }
-
 
 package Protocol::ACME;
 
@@ -381,7 +391,11 @@ sub _init
 sub _throw
 {
   my (@args) = @_;
-  croak Protocol::ACME::Exception->new( { @args } );
+  if ( scalar(@_) == 1 )
+  {
+    @args = ( detail => $_[0] );
+  }
+  croak ( Protocol::ACME::Exception->new( { @args } ) );
 }
 
 sub load_key_from_disk
@@ -743,15 +757,39 @@ sub sign
 
   $log->debug( "Signing" );
 
-  # TODO: slurp
-  my $fh = IO::File->new( $csr ) || die $!;
-  my $der;
-  while( <$fh> )
-  {
-    $der .= $_;
-  }
-  $fh->close();
+  my %args = ( Filename => undef,
+               Buffer   => undef,
+               Format   => undef );
 
+  if ( ! ref $csr )
+  {
+    $args{Filename} = $csr;
+  }
+  elsif( ref $csr eq "SCALAR" )
+  {
+    $args{Buffer} = $$csr;
+  }
+  else
+  {
+    map { $args{$_} = $csr->{$_} } keys %$csr;
+  }
+
+  if ( $args{Filename} )
+  {
+    $args{Buffer} = _slurp( $args{Filename} );
+    if ( ! $args{Buffer} )
+    {
+      _throw( "Could not load CSR from file $args{Filename}" );
+    }
+  }
+  $args{Buffer} = _slurp( $args{Filename} ) if $args{Filename};
+
+  if ( ! $args{Format} )
+  {
+    $args{Format} = Protocol::ACME::Utils::looks_like_pem( $args{Buffer} ) ? "PEM" : "DER";
+  }
+
+  my $der = $args{Format} eq "DER" ? $args{Buffer} : Crypt::Format::pem2der( $args{Buffer} );
 
   my $msg = _hash_to_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
 
@@ -778,9 +816,6 @@ sub _request_get
   my $url  = shift;
 
   my $resp = $self->{ua}->get( $url );
-
-#  print STDERR Dumper( $resp );
-#  print Dumper( $resp );
 
   $self->{nonce} = $resp->{headers}->{$NONCE_HEADER};
   $self->{json} = $resp->{content};
