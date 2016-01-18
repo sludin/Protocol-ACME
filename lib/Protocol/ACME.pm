@@ -259,6 +259,15 @@ foreach my $method ( Log::Any::Adapter::Util::detection_methods() ) {
 
 
 package Protocol::ACME::Exception;
+use Data::Dumper;
+
+# very simple stringification ... make this
+# more elaborate according to taste
+use overload ('""' => \&stringify);
+sub stringify {
+    my $self = shift;
+    return ref($self).' error: '.Dumper $self;
+}
 
 sub new
 {
@@ -381,7 +390,7 @@ sub _init
 sub _throw
 {
   my (@args) = @_;
-  croak Protocol::ACME::Exception->new( { @args } );
+  croak(Protocol::ACME::Exception->new( { @args } ));
 }
 
 sub load_key_from_disk
