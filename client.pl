@@ -10,8 +10,8 @@ use Convert::X509;
 
 use Data::Dumper;
 
-#my $host = "acme-staging.api.letsencrypt.org";
-my $host = "acme-v01.api.letsencrypt.org";
+my $host = "acme-staging.api.letsencrypt.org";
+#my $host = "acme-v01.api.letsencrypt.org";
 
 
 # Usage:
@@ -74,9 +74,10 @@ my $challenges = {
 eval
 {
 
+  my $data = Protocol::ACME::_slurp( $account_key_file );
+
   my $acme = Protocol::ACME->new( host               => $host,
-                                  account_key_path   => $account_key_file,
-                                  account_key_format => "PEM",
+                                  account_key        => \$data,
                                   #openssl            => "/opt/local/bin/openssl",
                                 );
 
@@ -110,6 +111,9 @@ eval
     $acme->check_challenge();
   }
 
+
+  my $buf = Protocol::ACME::_slurp( $csr_file );
+#  my $cert = $acme->sign( { Buffer => $buf, Format => "DER" } );
   my $cert = $acme->sign( $csr_file );
 
   my $fh = IO::File->new( $cert_file, "w" ) || die "Could not open cert file for write: $!";
@@ -127,16 +131,6 @@ else
   print "Success\n";
 }
 
-
-# new_reg
-# reg
-# new_authz
-# authz
-# challenge
-# new_cert
-# cert
-# cert_chain
-# revoke
 
 sub pull_identifiers_from_csr
 {

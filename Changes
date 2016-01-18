@@ -1,4 +1,17 @@
 Revision history for Protocol-ACME
+
+0.08_01 Mon Jan 18
+        - Added flexibility calls that take a PEM/DER string/filename
+        - Fixed various minor bugs
+        - Changes to the SimpleSSH challenge to create target directory as needed
+        - Updated docs
+        - deprecated load_key_from_disk
+        - changed the meaning of the account_key parameter lassed to the constructor
+        - removed the account_key_path paramater from the constructor
+
+0.08    Wed Jan 12
+        - Moved from LWP to HTTP::Tiny
+
 0.07    Mon Jan 10
         - Moved pem2der, der2pem to external module
 

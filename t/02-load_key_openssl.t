@@ -50,7 +50,7 @@ my $cmd = "$openssl genpkey -out $pkey -algorithm RSA -pkeyopt rsa_keygen_bits:2
 ok($? == 0);
 
 my $acme = Protocol::ACME->new( host               => $host,
-                                account_key_path   => $pkey,
+                                account_key        => $pkey,
                                 openssl            => $openssl
                               );
 

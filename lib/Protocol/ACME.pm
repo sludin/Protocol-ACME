@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.08';
+our $VERSION = '0.08_01';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.08
+Version 0.08_01
 
 =head1 SYNOPSIS
 
@@ -96,16 +96,14 @@ a * are required.
    -----------             --------------------
    *host                   undef
    account_key             undef
-   account_key_path        undef
    openssl                 undef
    ua                      HTTP::Tiny->new()
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
 
-B<account_key>: The account private key as a string. DER or PEM format. Excludes C<account_key_path>.
-
-B<account_key_path>: The filesystem path to the account private key. Excludes C<account_key>.
+B<account_key>: The account private key in a scalar ref or filename.  See C<$self->account_key>
+for details on this arguemtn.
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
@@ -118,7 +116,40 @@ B<ua>: An HTTP::Tiny object customized as you see fit
 
 =over
 
+=item account_key( $key_filename )
+
+=item account_key( \$buffer )
+
+=item account_key( \%explicit_args )
+
+
+C<account_key> will load a the private account key if it was not already loaded
+when the C<pProtocol::ACME> object was constructed.  There are three ways to call this:
+
+If the arg is a B<SCALAR> it is assumed to be the filename of the
+key.  C<account_key> will throw an error if there are problems reading the file.
+
+If the arg is a B<SCALAR> reference it is assumed to be a buffer that
+contains the KEY.
+
+If the arg is a B<HASH> reference it contains named arguments.  The arguments
+are:
+
+   KEY          DEFAUL        DESC
+   -----------  -----------   -------------------
+   filename     undef         The key Filename
+   buffer       undef         Buffer containing the key
+   format       undef         Explicitly state the format ( DER | PEM )
+
+If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+
+If the format is not explcitly set C<Protocol::ACME> will look at the key and
+try and determine what the format it.
+
+
 =item load_key_from_disk( $key_path )
+
+B<DEPRECATED>
 
 Load a key from disk.  Currently the key needs to be unencrypted.
 Callbacks for handling password protected keys are still to come.
@@ -191,13 +222,38 @@ challenge.
 Called after C<handle_challenge>.  This will poll the challenge status
 resource and will return when the state changes from 'pending'.
 
-=item $cert = sign( $csr )
+=item $cert = sign( $csr_filename )
+
+=item $cert = sign( \$buffer )
+
+=item $cert = sign( \%explicit_args )
 
 
 Call C<sign> after the challenge for each domain ( itentifier ) has
-been fulfilled.  C<$csr> is the DER encoded Certificate Signing
-Request ( CSR ).  On success Let's Encrypt will return the DER encoded
-signed certificate.
+been fulfilled.  There are three ways to call this:
+
+If the arg is a B<SCALAR> it is assumed to be the filename of the
+CSR.  C<sign> will throw an error if there are problems reading the file.
+
+If the arg is a B<SCALAR> reference it is assumed to be a buffer that
+contains the CSR.
+
+If the arg is a B<HASH> reference it contains named arguments.  The arguments
+are:
+
+   KEY          DEFAUL        DESC
+   -----------  -----------   -------------------
+   filename     undef         The CSR Filename
+   buffer       undef         Buffer containing the CSR
+   format       undef         Explicitly state the format ( DER | PEM )
+
+If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+
+If the format is not explcitly set Protocol::ACME will look at the CSR and
+try and determine what the format it.
+
+On success C<Protocol::ACME> will return the DER encoded signed certificate.
+
 
 =item revoke( $certfile )
 
@@ -360,27 +416,7 @@ sub _init
 
   if ( exists $args->{account_key} )
   {
-    if (defined $args->{account_key_path}) {
-      _throw( detail => "You cannot submit both account_key and account_key_patho Protocol::ACME::new()." );
-    }
-
-    if ( UNIVERSAL::isa($args->{account_key}, "Crypt::OpenSSL::RSA") )
-    {
-      $self->{key} = $args->{account_key};
-      # TODO: add derivatives
-    }
-    else
-    {
-      $self->load_key( $args->{'account_key'} );
-    }
-  }
-  elsif (exists $args->{account_key_path})
-  {
-    $self->load_key_from_disk( $args->{account_key_path} );
-  }
-  else
-  {
-    _throw( detail => "You must submit one (and only one) of either account_keyr account_key_path." );
+    $self->account_key( $args->{account_key} );
   }
 
   $self->{links}->{directory} = "https://" . $self->{host} . '/directory';
@@ -398,32 +434,73 @@ sub _throw
   croak ( Protocol::ACME::Exception->new( { @args } ) );
 }
 
+sub load_key
+{
+  my ($self, $keystring) = @_;
+  return $self->account_key( \$keystring );
+}
+
 sub load_key_from_disk
 {
   my $self   = shift;
   my $path   = shift;
 
-  my $keystring = _slurp( $path );
-  if ( ! $keystring )
-  {
-    _throw( detail => "Could not open the key file ($path): $!" );
-  }
-
-  return $self->load_key($keystring);
+  return $self->account_key($path);
 }
 
-sub load_key
+sub account_key
 {
-  my ($self, $keystring) = @_;
+  my $self = shift;
+  my $key = shift;
 
-  my $key;
+  my %args = ( filename => undef,
+               buffer   => undef,
+               format   => undef );
+
+  if ( ! ref $key )
+  {
+    $args{filename} = $key;
+  }
+  elsif( ref $key eq "SCALAR" )
+  {
+    $args{buffer} = $$key;
+  }
+  else
+  {
+    map { $args{$_} = $key->{$_} } keys %$key;
+  }
+
+  if ( $args{filename} )
+  {
+    $args{buffer} = _slurp( $args{filename} );
+    if ( ! $args{buffer} )
+    {
+      _throw( "Could not load key from file $args{filename}" );
+    }
+  }
+
+  if ( ! $args{buffer} )
+  {
+    _throw( "Either a buffer or filename must be passed" );
+  }
+
+  if ( ! $args{format} )
+  {
+    $args{format} = Protocol::ACME::Utils::looks_like_pem( $args{buffer} ) ? "PEM" : "DER";
+  }
+
+  my $keystring = $args{buffer};
+  # TODO: This should detect/handle PKCS8-formatted private keys as well.
+  if ( $args{format} eq "DER" )
+  {
+    $keystring = Crypt::Format::der2pem( $keystring, "RSA PRIVATE KEY" );
+  }
 
   if ( exists $self->{openssl} )
   {
     require Protocol::ACME::Key;
-    # TODO: DER format for the openssl path?
     $key = Protocol::ACME::Key->new( keystring => $keystring,
-                                     openssl => $self->{openssl} );
+                                     openssl   => $self->{openssl} );
   }
   else
   {
@@ -437,13 +514,6 @@ sub load_key
       die "Invoked usage requires Crypt::OpenSSL::RSA and Crypt::OpenSSL::Bignum. " .
       "To avoid these dependencies use the openssl parameter when creating the " .
       "Protocol::ACME object.  This will use a native openssl binary instead.";
-    }
-
-    if ( ! Protocol::ACME::Utils::looks_like_pem($keystring) )
-    {
-      #TODO: This should detect/handle PKCS8-formatted private keys as well.
-      $keystring = Crypt::Format::der2pem( $keystring, "RSA PRIVATE KEY" );
-      print $keystring;
     }
 
     $key = Crypt::OpenSSL::RSA->new_private_key($keystring);
@@ -463,7 +533,10 @@ sub load_key
   $self->{key}->{e} = $e_b64;
 
   $log->debug( "Private key loaded" );
+
 }
+
+
 
 
 sub directory
@@ -757,39 +830,43 @@ sub sign
 
   $log->debug( "Signing" );
 
-  my %args = ( Filename => undef,
-               Buffer   => undef,
-               Format   => undef );
+  my %args = ( filename => undef,
+               buffer   => undef,
+               format   => undef );
 
   if ( ! ref $csr )
   {
-    $args{Filename} = $csr;
+    $args{filename} = $csr;
   }
   elsif( ref $csr eq "SCALAR" )
   {
-    $args{Buffer} = $$csr;
+    $args{Bbuffer} = $$csr;
   }
   else
   {
     map { $args{$_} = $csr->{$_} } keys %$csr;
   }
 
-  if ( $args{Filename} )
+  if ( $args{filename} )
   {
-    $args{Buffer} = _slurp( $args{Filename} );
-    if ( ! $args{Buffer} )
+    $args{buffer} = _slurp( $args{filename} );
+    if ( ! $args{buffer} )
     {
-      _throw( "Could not load CSR from file $args{Filename}" );
+      _throw( "Could not load CSR from file $args{filename}" );
     }
   }
-  $args{Buffer} = _slurp( $args{Filename} ) if $args{Filename};
 
-  if ( ! $args{Format} )
+  if ( ! $args{buffer} )
   {
-    $args{Format} = Protocol::ACME::Utils::looks_like_pem( $args{Buffer} ) ? "PEM" : "DER";
+    _throw( "Either a buffer or filename must be passed to sign" );
   }
 
-  my $der = $args{Format} eq "DER" ? $args{Buffer} : Crypt::Format::pem2der( $args{Buffer} );
+  if ( ! $args{format} )
+  {
+    $args{format} = Protocol::ACME::Utils::looks_like_pem( $args{buffer} ) ? "PEM" : "DER";
+  }
+
+  my $der = $args{format} eq "DER" ? $args{buffer} : Crypt::Format::pem2der( $args{buffer} );
 
   my $msg = _hash_to_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
 

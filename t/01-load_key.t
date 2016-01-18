@@ -6,6 +6,7 @@ use Test::More;
 use File::Temp qw( tempfile );
 use FindBin;
 use File::Spec;
+
 use Protocol::ACME;
 
 my $tests = 7;
@@ -66,16 +67,12 @@ SKIP: {
   ok($pkey);
 
 
-
-
   my $openssl = which( "openssl" );
 
   ok($openssl);
 
 
-
   my $cmd = "$openssl genpkey -out $pkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048";
-
 
 
   `$cmd 2>&1`;
@@ -83,11 +80,10 @@ SKIP: {
   ok($? == 0);
 
   my $acme = Protocol::ACME->new( host               => $host,
-                                  account_key_path   => $pkey,
+                                  account_key        => $pkey,
                                 );
 
   ok($acme);
-
 
   eval {
     $acme->directory();
