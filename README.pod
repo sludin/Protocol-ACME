@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.08
+Version 0.08_01
 
 =head1 SYNOPSIS
 
@@ -86,16 +86,14 @@ a * are required.
    -----------             --------------------
    *host                   undef
    account_key             undef
-   account_key_path        undef
    openssl                 undef
    ua                      HTTP::Tiny->new()
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
 
-B<account_key>: The account private key as a string. DER or PEM format. Excludes C<account_key_path>.
-
-B<account_key_path>: The filesystem path to the account private key. Excludes C<account_key>.
+B<account_key>: The account private key in a scalar ref or filename.  See C<$self->account_key>
+for details on this arguemtn.
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
@@ -108,7 +106,40 @@ B<ua>: An HTTP::Tiny object customized as you see fit
 
 =over
 
+=item account_key( $key_filename )
+
+=item account_key( \$buffer )
+
+=item account_key( \%explicit_args )
+
+
+C<account_key> will load a the private account key if it was not already loaded
+when the C<pProtocol::ACME> object was constructed.  There are three ways to call this:
+
+If the arg is a B<SCALAR> it is assumed to be the filename of the
+key.  C<account_key> will throw an error if there are problems reading the file.
+
+If the arg is a B<SCALAR> reference it is assumed to be a buffer that
+contains the KEY.
+
+If the arg is a B<HASH> reference it contains named arguments.  The arguments
+are:
+
+   KEY          DEFAUL        DESC
+   -----------  -----------   -------------------
+   filename     undef         The key Filename
+   buffer       undef         Buffer containing the key
+   format       undef         Explicitly state the format ( DER | PEM )
+
+If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+
+If the format is not explcitly set C<Protocol::ACME> will look at the key and
+try and determine what the format it.
+
+
 =item load_key_from_disk( $key_path )
+
+B<DEPRECATED>
 
 Load a key from disk.  Currently the key needs to be unencrypted.
 Callbacks for handling password protected keys are still to come.
@@ -181,13 +212,38 @@ challenge.
 Called after C<handle_challenge>.  This will poll the challenge status
 resource and will return when the state changes from 'pending'.
 
-=item $cert = sign( $csr )
+=item $cert = sign( $csr_filename )
+
+=item $cert = sign( \$buffer )
+
+=item $cert = sign( \%explicit_args )
 
 
 Call C<sign> after the challenge for each domain ( itentifier ) has
-been fulfilled.  C<$csr> is the DER encoded Certificate Signing
-Request ( CSR ).  On success Let's Encrypt will return the DER encoded
-signed certificate.
+been fulfilled.  There are three ways to call this:
+
+If the arg is a B<SCALAR> it is assumed to be the filename of the
+CSR.  C<sign> will throw an error if there are problems reading the file.
+
+If the arg is a B<SCALAR> reference it is assumed to be a buffer that
+contains the CSR.
+
+If the arg is a B<HASH> reference it contains named arguments.  The arguments
+are:
+
+   KEY          DEFAUL        DESC
+   -----------  -----------   -------------------
+   filename     undef         The CSR Filename
+   buffer       undef         Buffer containing the CSR
+   format       undef         Explicitly state the format ( DER | PEM )
+
+If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+
+If the format is not explcitly set Protocol::ACME will look at the CSR and
+try and determine what the format it.
+
+On success C<Protocol::ACME> will return the DER encoded signed certificate.
+
 
 =item revoke( $certfile )
 
