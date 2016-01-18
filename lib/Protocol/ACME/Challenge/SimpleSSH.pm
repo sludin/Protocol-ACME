@@ -114,12 +114,9 @@ sub handle
   my $self          = shift;
   my $challenge     = shift;
   my $fingerprint   = shift;
-
-  my $cmd = "ssh -q $self->{ssh_host} 'echo $challenge.$fingerprint > " .
-            "$self->{www_root}/.well-known/acme-challenge/$challenge'";
-
-  my $output = `$cmd`;
-
+  my $dir = "$self->{www_root}/.well-known/acme-challenge";
+  my @cmd = ('ssh', '-q',  $self->{ssh_host}, "mkdir -p '$dir' && echo '$challenge$fingerprint' > '$dir/$challenge'");
+  system @cmd;
   return $? == 0 ? 0 : 1;
 }
 
