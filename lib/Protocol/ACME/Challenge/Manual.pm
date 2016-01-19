@@ -2,7 +2,7 @@ package Protocol::ACME::Challenge::Manual;
 
 =head1 NAME
 
-Protocol::ACME::Challenge::SimpleSSH - Challenge handler for simpleHttp
+Protocol::ACME::Challenge::Manual - Challenge handler for simpleHttp via manual setup
 
 =head1 SYNOPSIS
 
