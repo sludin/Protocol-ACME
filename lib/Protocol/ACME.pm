@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.08_01';
+our $VERSION = '0.09';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.08_01
+Version 0.09
 
 =head1 SYNOPSIS
 
@@ -98,6 +98,8 @@ a * are required.
    account_key             undef
    openssl                 undef
    ua                      HTTP::Tiny->new()
+   loglevel                error
+   debug                   0
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
@@ -109,6 +111,10 @@ B<openssl>: The path to openssl.  If this option is used a local version of the 
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
 
 B<ua>: An HTTP::Tiny object customized as you see fit
+
+B<loglevel>: Set the loglevel to one of the C<Log::Any> values.
+
+B<debug>: If set to non-zero this is a shortcut for C<loglevel => debug>
 
 =back
 
@@ -367,8 +373,8 @@ use MIME::Base64 qw( encode_base64url decode_base64url decode_base64 encode_base
 use HTTP::Tiny;
 use JSON;
 use Digest::SHA qw( sha256 );
-use Log::Any qw( $log );
-use Log::Any::Adapter ('AcmeLocal', log_level => 'debug' );
+use Log::Any;
+use Log::Any::Adapter;
 
 use Carp;
 
@@ -400,9 +406,20 @@ sub _init
     %$args = @_;
   }
 
-  $self->{host} = $args->{host} if exists $args->{host};
-  $self->{ua} = $args->{ua} if exists $args->{ua};
-  $self->{openssl} = $args->{openssl} if exists $args->{openssl};
+  # TODO: There are more elegant and well baked ways to take care of the
+  #       parameter handling that I am doing here
+  $self->{host}     = $args->{host}    if exists $args->{host};
+  $self->{ua}       = $args->{ua}      if exists $args->{ua};
+  $self->{openssl}  = $args->{openssl} if exists $args->{openssl};
+  $self->{debug}    = $args->{debug}   if exists $args->{debug};
+  $self->{loglevel} = exists $args->{loglevel} ? $args->{loglevel} : "error";
+
+  if ( $self->{debug} )
+  {
+    $self->{loglevel} = "debug";
+  }
+
+  print $self->{loglevel}, "\n";
 
   if ( ! exists $self->{ua} )
   {
@@ -414,6 +431,9 @@ sub _init
     _throw( detail => "host parameter is required for Protocol::ACME::new" );
   }
 
+  $self->{log} = Log::Any->get_logger();
+  Log::Any::Adapter->set('AcmeLocal', log_level => $self->{loglevel} );
+
   if ( exists $args->{account_key} )
   {
     $self->account_key( $args->{account_key} );
@@ -422,6 +442,8 @@ sub _init
   $self->{links}->{directory} = "https://" . $self->{host} . '/directory';
 
   $self->{nonce} = undef;
+
+
 }
 
 sub _throw
@@ -532,7 +554,7 @@ sub account_key
   $self->{key}->{n} = $n_b64;
   $self->{key}->{e} = $e_b64;
 
-  $log->debug( "Private key loaded" );
+  $self->{log}->debug( "Private key loaded" );
 
 }
 
@@ -557,7 +579,7 @@ sub directory
   @{$self->{links}}{keys %$data} = values %$data;
 
 
-  $log->debug( "Let's Encrypt Directories loaded." );
+  $self->{log}->debug( "Let's Encrypt Directories loaded." );
 }
 
 #
@@ -570,7 +592,7 @@ sub register
   my $msg = encode_json( { resource => 'new-reg' } );
   my $json = $self->_create_jws( $msg );
 
-  $log->debug( "Sending registration message" );
+  $self->{log}->debug( "Sending registration message" );
 
   my $resp = $self->_request_post( $self->{links}->{'new-reg'}, $json );
 
@@ -578,8 +600,8 @@ sub register
   {
     $self->{links}->{'reg'} = $resp->{headers}->{'location'};
 
-    $log->debug( "Known key used" );
-    $log->debug( "Refetching with location URL" );
+    $self->{log}->debug( "Known key used" );
+    $self->{log}->debug( "Refetching with location URL" );
 
     my $json = $self->_create_jws( encode_json( { "resource" => 'reg' } ) );
 
@@ -603,7 +625,7 @@ sub register
     @{$self->{links}}{keys %$links} = values %$links;
 
     $self->{links}->{'reg'} = $resp->{headers}->{'location'};
-    $log->debug( "New key used" );
+    $self->{log}->debug( "New key used" );
   }
   else
   {
@@ -662,11 +684,11 @@ sub accept_tos
 
   if ( exists $self->{reg}->{agreement} )
   {
-    $log->debug( "TOS already accepted. Skipping" );
+    $self->{log}->debug( "TOS already accepted. Skipping" );
     return;
   }
 
-  $log->debug( "Accepting TOS" );
+  $self->{log}->debug( "Accepting TOS" );
   # TODO: check for existance of terms-of-service link
   # TODO: assert on reg url being present
 
@@ -683,7 +705,7 @@ sub accept_tos
 
   if ( $resp->{status} == 202 )
   {
-    $log->debug( "Accepted TOS" );
+    $self->{log}->debug( "Accepted TOS" );
   }
   else
   {
@@ -696,7 +718,7 @@ sub revoke
   my $self = shift;
   my $certfile = shift;
 
-  $log->debug( "Revoking Cert" );
+  $self->{log}->debug( "Revoking Cert" );
 
   my $cert = _slurp( $certfile );
 
@@ -727,7 +749,7 @@ sub authz
   my $self   = shift;
   my $domain = shift;
 
-  $log->debug( "Sending authz message for $domain" );
+  $self->{log}->debug( "Sending authz message for $domain" );
   # TODO: check for 'next' URL and that is it authz
 
   my $msg = _hash_to_json( { "identifier" => { "type" => "dns", "value" => $domain },
@@ -774,7 +796,7 @@ sub handle_challenge
 
   my $fingerprint = encode_base64url( sha256( $jwk ) );
 
-  $log->debug( "Handing challenge for token: $token.$fingerprint" );
+  $self->{log}->debug( "Handing challenge for token: $token.$fingerprint" );
 
   my $ret = $challenge->handle( $token, $fingerprint, @args );
 
@@ -807,10 +829,10 @@ sub check_challenge
   # TODO: check for failure of challenge check
   # TODO: check for other HTTP failures
 
-  $log->debug( "Polling for challenge fulfillment" );
+  $self->{log}->debug( "Polling for challenge fulfillment" );
   while( 1 )
   {
-    $log->debug( "Status: $self->{content}->{status}" );
+    $self->{log}->debug( "Status: $self->{content}->{status}" );
     if ( $self->{content}->{status} eq "pending" )
     {
       sleep(2);
@@ -828,7 +850,7 @@ sub sign
   my $self = shift;
   my $csr = shift;
 
-  $log->debug( "Signing" );
+  $self->{log}->debug( "Signing" );
 
   my %args = ( filename => undef,
                buffer   => undef,

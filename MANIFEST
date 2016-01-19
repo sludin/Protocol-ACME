@@ -13,6 +13,16 @@ README.pod
 t/00-load.t
 t/01-load_key.t
 t/02-load_key_openssl.t
+t/03-load_key.t
 client.pl
 maketestcerts.sh
 revoke.pl
+t/test_account_key.der
+t/test_account_key.pem
+t/test_cert_key.der
+t/test_cert_key.pem
+t/test_csr.der
+t/test_csr.pem
+t/write_key_files.pl
+t/lib/Protocol/ACME/Test.pm
+

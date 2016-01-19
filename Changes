@@ -1,5 +1,9 @@
 Revision history for Protocol-ACME
 
+0.09    Tue Jan 19
+        - Made the log level configurable
+        - Added more tests
+        
 0.08_01 Mon Jan 18
         - Added flexibility calls that take a PEM/DER string/filename
         - Fixed various minor bugs
