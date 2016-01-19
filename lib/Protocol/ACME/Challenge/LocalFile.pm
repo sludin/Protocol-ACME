@@ -2,7 +2,7 @@ package Protocol::ACME::Challenge::LocalFile;
 
 =head1 NAME
 
-Protocol::ACME::Challenge::LocalFile - Challenge handler for simpleHttp
+Protocol::ACME::Challenge::LocalFile - Challenge handler for simpleHttp via a local file
 
 =head1 SYNOPSIS
 
