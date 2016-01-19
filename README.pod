@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.08_01
+Version 0.09
 
 =head1 SYNOPSIS
 
@@ -88,6 +88,8 @@ a * are required.
    account_key             undef
    openssl                 undef
    ua                      HTTP::Tiny->new()
+   loglevel                error
+   debug                   0
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
@@ -99,6 +101,10 @@ B<openssl>: The path to openssl.  If this option is used a local version of the 
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
 
 B<ua>: An HTTP::Tiny object customized as you see fit
+
+B<loglevel>: Set the loglevel to one of the C<Log::Any> values.
+
+B<debug>: If set to non-zero this is a shortcut for C<loglevel => debug>
 
 =back
 
