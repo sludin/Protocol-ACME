@@ -147,7 +147,7 @@ are:
    buffer       undef         Buffer containing the key
    format       undef         Explicitly state the format ( DER | PEM )
 
-If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+If both C<filename> and C<buffer> are set the C<buffer> argument will be ignored.
 
 If the format is not explcitly set C<Protocol::ACME> will look at the key and
 try and determine what the format it.
@@ -253,7 +253,7 @@ are:
    buffer       undef         Buffer containing the CSR
    format       undef         Explicitly state the format ( DER | PEM )
 
-If both C<filename> and <buffer> are set the C<buffer> argument will be ignored.
+If both C<filename> and C<buffer> are set the C<buffer> argument will be ignored.
 
 If the format is not explcitly set Protocol::ACME will look at the CSR and
 try and determine what the format it.
