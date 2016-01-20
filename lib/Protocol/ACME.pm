@@ -56,8 +56,8 @@ Version 0.09
  };
  if ( $@ )
  {
-   die $@ if ref $@ ne "Protocol::ACME::Exception";
-   print "Error occured: Status: $@->{status},
+   die if !UNIVERSAL::isa($@, 'Protocol::ACME::Exception');
+   die "Error occured: Status: $@->{status},
                          Detail: $@->{detail},
                          Type: $@->{type}\n";
  }
