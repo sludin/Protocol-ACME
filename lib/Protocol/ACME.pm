@@ -862,7 +862,7 @@ sub sign
   }
   elsif( ref $csr eq "SCALAR" )
   {
-    $args{Bbuffer} = $$csr;
+    $args{buffer} = $$csr;
   }
   else
   {
