@@ -489,7 +489,7 @@ sub account_key
   }
   else
   {
-    map { $args{$_} = $key->{$_} } keys %$key;
+    @args{ keys %$key } = values %$key;
   }
 
   if ( $args{filename} )
