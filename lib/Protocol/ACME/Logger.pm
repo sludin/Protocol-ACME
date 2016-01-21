@@ -18,8 +18,8 @@ sub debug {
 
     Log::Any::Adapter->set(
         { lexically => \my $set },
-        $this_module,
-        log_level => $self->{_loglevel},
+        'AcmeLocal',
+        log_level => $self->{_level},
     );
 
     return $self->{_log}->debug(@_);
@@ -37,7 +37,7 @@ use Time::HiRes qw( gettimeofday );
 
 use base qw/Log::Any::Adapter::Base/;
 
-my $trace_level = Log::Any::Adapter::Util::numeric_level('trace');
+my $trace_level;
 
 sub init {
     my ($self) = @_;
@@ -47,6 +47,7 @@ sub init {
           unless $self->{log_level} =~ /^\d+$/;
     }
     else {
+        $trace_level ||= Log::Any::Adapter::Util::numeric_level('trace');
         $self->{log_level} = $trace_level;
     }
 }
