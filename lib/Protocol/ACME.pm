@@ -489,7 +489,7 @@ sub account_key
   }
   else
   {
-    map { $args{$_} = $key->{$_} } keys %$key;
+    @args{ keys %$key } = values %$key;
   }
 
   if ( $args{filename} )
@@ -497,7 +497,7 @@ sub account_key
     $args{buffer} = _slurp( $args{filename} );
     if ( ! $args{buffer} )
     {
-      _throw( "Could not load key from file $args{filename}" );
+      _throw( "Could not load key from file $args{filename}: $!" );
     }
   }
 
@@ -543,7 +543,7 @@ sub account_key
 
   if ( ! $key )
   {
-    die Protocol::ACME::Exception->new( { detail => "Could not load key into key structure" } );
+    _throw( "Could not load key into key structure" );
   }
 
   $key->use_sha256_hash();
@@ -571,7 +571,7 @@ sub directory
 
   if ( $resp->{status} != 200 )
   {
-    die Protocol::ACME::Exception->new( { detail => "Failed to fetch the directory for $self->{host}", resp => $resp } );
+    _throw( detail => "Failed to fetch the directory for $self->{host}", resp => $resp );
   }
 
   my $data = decode_json( $resp->{content} );
@@ -615,7 +615,7 @@ sub register
     }
     else
     {
-      die Protocol::ACME::Exception->new( $self->{content} );
+      _throw( @{ $self->{content} } );
     }
   }
   elsif ( $resp->{status} == 201 )
@@ -629,7 +629,7 @@ sub register
   }
   else
   {
-    die Protocol::ACME::Exception->new( $self->{content} );
+    _throw( @{ $self->{content} } );
   }
 
 
@@ -649,7 +649,7 @@ sub recovery_key
 
 
   my $pem = _slurp( $keyfile );
-  croak( Protocol::ACME::Exception->new( { detail => "$keyfile: $!" } ) ) if ! $pem;
+  _throw( "$keyfile: $!" ) if ! $pem;
 
   my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
@@ -671,7 +671,7 @@ sub recovery_key
               }
             };
 
-  my $json = $self->_create_jws( _hash_to_json($msg) );
+  my $json = $self->_create_jws( encode_json($msg) );
 
   my $resp = $self->_request_post( $url, $json );
 
@@ -692,7 +692,7 @@ sub accept_tos
   # TODO: check for existance of terms-of-service link
   # TODO: assert on reg url being present
 
-  my $msg = _hash_to_json( { "resource"  => "reg",
+  my $msg = encode_json( { "resource"  => "reg",
                              "agreement" => $self->{links}->{'terms-of-service'},
                              "key"       => { "e"   => $self->{key}->{e},
                                              "kty" => "RSA",
@@ -709,7 +709,7 @@ sub accept_tos
   }
   else
   {
-    die Protocol::ACME::Exception->new( $self->{content} );
+    _throw( @{ $self->{content} } );
   }
 }
 
@@ -724,12 +724,11 @@ sub revoke
 
   if ( ! $cert )
   {
-    # TODO: should be an ACME exception
-    die "Could not load cert form $certfile";
+    _throw("Could not load cert from $certfile: $!");
   }
 
 
-  my $msg = _hash_to_json( { "resource"    => "revoke-cert",
+  my $msg = encode_json( { "resource"    => "revoke-cert",
                             "certificate" => encode_base64url( $cert ) } );
 
 
@@ -739,7 +738,7 @@ sub revoke
 
   if ( $resp->{status} != 200 )
   {
-    die Protocol::ACME::Exception->new( $self->{content} );
+    _throw( @{ $self->{content} } );
   }
 
 }
@@ -752,7 +751,7 @@ sub authz
   $self->{log}->debug( "Sending authz message for $domain" );
   # TODO: check for 'next' URL and that is it authz
 
-  my $msg = _hash_to_json( { "identifier" => { "type" => "dns", "value" => $domain },
+  my $msg = encode_json( { "identifier" => { "type" => "dns", "value" => $domain },
                             "resource"   => "new-authz" } );
 
   my $json = $self->_create_jws( $msg );
@@ -765,7 +764,7 @@ sub authz
   }
   else
   {
-    die Protocol::ACME::Exception->new( $self->{content} );
+    _throw( @{ $self->{content} } );
   }
 }
 
@@ -777,7 +776,7 @@ sub handle_challenge
 
   my $key = $self->{key};
 
-  my $jwk = _hash_to_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
+  my $jwk = encode_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
   my $token;
   my $challenge_url;
 
@@ -808,7 +807,7 @@ sub handle_challenge
   }
   else
   {
-    die Protocol::ACME::Exception->new( { status => 0, detail => $ret, type => "challenge_exec" } );
+    _throw( status => 0, detail => $ret, type => "challenge_exec" );
   }
 }
 
@@ -817,7 +816,7 @@ sub check_challenge
 {
   my $self = shift;
 
-  my $msg = _hash_to_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
+  my $msg = encode_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
 
   my $json = $self->_create_jws( $msg );
 
@@ -866,7 +865,7 @@ sub sign
   }
   else
   {
-    map { $args{$_} = $csr->{$_} } keys %$csr;
+    @args{keys %$csr} = values %$csr;
   }
 
   if ( $args{filename} )
@@ -890,7 +889,7 @@ sub sign
 
   my $der = $args{format} eq "DER" ? $args{buffer} : Crypt::Format::pem2der( $args{buffer} );
 
-  my $msg = _hash_to_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
+  my $msg = encode_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
 
   my $json = $self->_create_jws( $msg );
 
@@ -898,7 +897,7 @@ sub sign
 
   if ( $resp->{status} != 201 )
   {
-    die Protocol::ACME::Exception->new( $self->{content} );
+    _throw( @{ $self->{content} } );
   }
 
   my $cert = $resp->{content};
@@ -919,9 +918,9 @@ sub _request_get
   $self->{nonce} = $resp->{headers}->{$NONCE_HEADER};
   $self->{json} = $resp->{content};
 
-  eval {
-    $self->{content} = decode_json( $resp->{content} );
-  };
+  #Exception here should be fatal.
+  $self->{content} = decode_json( $resp->{content} );
+
   return $resp;
 }
 
@@ -937,9 +936,9 @@ sub _request_post
 
   $self->{json} = $resp->{content};
 
-  eval {
-    $self->{content} = decode_json( $resp->{content} );
-  };
+  #Let exception from decode_json() propagate:
+  #if we failed to decode the JSON, that’s a show-stopper.
+  $self->{content} = decode_json( $resp->{content} );
 
   return $resp;
 }
@@ -960,18 +959,9 @@ sub _slurp
 {
   my $filename = shift;
 
-  my $fh = IO::File->new( $filename );
-  if ( ! $fh )
-  {
-    return;
-  }
+  open my $fh, '<', $filename or return undef;
 
-  my $content;
-
-  while( <$fh> )
-  {
-    $content .= $_;
-  }
+  sysread( $fh, my $content, -s $fh ) or return undef;
 
   return $content;
 }
@@ -999,33 +989,6 @@ sub _link_to_hash
   }
 
   return $links;
-}
-
-sub _hash_to_json
-{
-  my $hash = shift;
-  my $json = "{";
-  my $quote = '"';
-  my $colon = ':';
-  my $comma = ',';
-
-  for ( sort keys %$hash )
-  {
-    # die "hash_to_json does not handle nested references yet" if ref $hash->{$_};
-    if ( ref $hash->{$_} eq "HASH" )
-    {
-      $json .= $quote . $_ . $quote . $colon . _hash_to_json($hash->{$_}) . $comma;
-    }
-    else
-    {
-      $json .= $quote . $_ . $quote . $colon . $quote . $hash->{$_} . $quote . $comma;
-    }
-  }
-
-  $json =~ s/,$//;
-
-  $json .= '}';
-
 }
 
 sub _bigint_to_binary {
@@ -1065,7 +1028,7 @@ sub _create_jws_internal
               payload   => encode_base64url( $msg ),
               signature => $sig };
 
-  my $json = _hash_to_json( $jws );
+  my $json = encode_json( $jws );
 
   return $json;
 
