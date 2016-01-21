@@ -419,8 +419,6 @@ sub _init
     $self->{loglevel} = "debug";
   }
 
-  print $self->{loglevel}, "\n";
-
   if ( ! exists $self->{ua} )
   {
     $self->{ua} = HTTP::Tiny->new( agent => $USERAGENT, verify_SSL => 1 );
@@ -574,7 +572,7 @@ sub directory
     _throw( detail => "Failed to fetch the directory for $self->{host}", resp => $resp );
   }
 
-  my $data = decode_json( $resp->{content} );
+  my $data = _decode_json( $resp->{content} );
 
   @{$self->{links}}{keys %$data} = values %$data;
 
@@ -589,7 +587,7 @@ sub register
 {
   my $self = shift;
 
-  my $msg = encode_json( { resource => 'new-reg' } );
+  my $msg = _encode_json( { resource => 'new-reg' } );
   my $json = $self->_create_jws( $msg );
 
   $self->{log}->debug( "Sending registration message" );
@@ -603,7 +601,7 @@ sub register
     $self->{log}->debug( "Known key used" );
     $self->{log}->debug( "Refetching with location URL" );
 
-    my $json = $self->_create_jws( encode_json( { "resource" => 'reg' } ) );
+    my $json = $self->_create_jws( _encode_json( { "resource" => 'reg' } ) );
 
     $resp = $self->_request_post( $self->{links}->{'reg'}, $json );
 
@@ -671,7 +669,7 @@ sub recovery_key
               }
             };
 
-  my $json = $self->_create_jws( encode_json($msg) );
+  my $json = $self->_create_jws( _encode_json($msg) );
 
   my $resp = $self->_request_post( $url, $json );
 
@@ -692,7 +690,7 @@ sub accept_tos
   # TODO: check for existance of terms-of-service link
   # TODO: assert on reg url being present
 
-  my $msg = encode_json( { "resource"  => "reg",
+  my $msg = _encode_json( { "resource"  => "reg",
                              "agreement" => $self->{links}->{'terms-of-service'},
                              "key"       => { "e"   => $self->{key}->{e},
                                              "kty" => "RSA",
@@ -728,7 +726,7 @@ sub revoke
   }
 
 
-  my $msg = encode_json( { "resource"    => "revoke-cert",
+  my $msg = _encode_json( { "resource"    => "revoke-cert",
                             "certificate" => encode_base64url( $cert ) } );
 
 
@@ -751,7 +749,7 @@ sub authz
   $self->{log}->debug( "Sending authz message for $domain" );
   # TODO: check for 'next' URL and that is it authz
 
-  my $msg = encode_json( { "identifier" => { "type" => "dns", "value" => $domain },
+  my $msg = _encode_json( { "identifier" => { "type" => "dns", "value" => $domain },
                             "resource"   => "new-authz" } );
 
   my $json = $self->_create_jws( $msg );
@@ -776,7 +774,7 @@ sub handle_challenge
 
   my $key = $self->{key};
 
-  my $jwk = encode_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
+  my $jwk = _encode_json( { "e" => $key->{e}, "kty" => "RSA", "n" => $key->{n} } );
   my $token;
   my $challenge_url;
 
@@ -816,7 +814,7 @@ sub check_challenge
 {
   my $self = shift;
 
-  my $msg = encode_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
+  my $msg = _encode_json( { "resource" => "challenge", "keyAuthorization" => $self->{token} . '.' . $self->{fingerprint} } );
 
   my $json = $self->_create_jws( $msg );
 
@@ -889,11 +887,11 @@ sub sign
 
   my $der = $args{format} eq "DER" ? $args{buffer} : Crypt::Format::pem2der( $args{buffer} );
 
-  my $msg = encode_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
+  my $msg = _encode_json( { "resource" => "new-cert", "csr" => encode_base64url( $der ) } );
 
   my $json = $self->_create_jws( $msg );
 
-  my $resp = $self->_request_post( $self->{links}->{'new-cert'}, $json );
+  my $resp = $self->_request_post( $self->{links}->{'new-cert'}, $json, 1 );
 
   if ( $resp->{status} != 201 )
   {
@@ -919,16 +917,17 @@ sub _request_get
   $self->{json} = $resp->{content};
 
   #Exception here should be fatal.
-  $self->{content} = decode_json( $resp->{content} );
+  $self->{content} = _decode_json( $resp->{content} );
 
   return $resp;
 }
 
 sub _request_post
 {
-  my $self    = shift;
-  my $url     = shift;
-  my $content = shift;
+  my $self     = shift;
+  my $url      = shift;
+  my $content  = shift;
+  my $nodecode = shift || 0;
 
   my $resp = $self->{ua}->post( $url, { content => $content } );
 
@@ -938,7 +937,9 @@ sub _request_post
 
   #Let exception from decode_json() propagate:
   #if we failed to decode the JSON, that’s a show-stopper.
-  $self->{content} = decode_json( $resp->{content} );
+  $self->{content} = undef;
+  $self->{content} = _decode_json( $resp->{content} ) unless $nodecode;
+
 
   return $resp;
 }
@@ -1028,10 +1029,25 @@ sub _create_jws_internal
               payload   => encode_base64url( $msg ),
               signature => $sig };
 
-  my $json = encode_json( $jws );
+  my $json = _encode_json( $jws );
 
   return $json;
 
+}
+
+sub _decode_json
+{
+  my $ref = shift;
+  return JSON->new->allow_nonref->decode($ref);
+}
+
+sub _encode_json
+{
+  my $ref = shift;
+#  my $json = JSON->new();
+#  $json->canonical();
+  #  return $json->encode($ref);
+  return JSON->new->canonical->encode($ref);
 }
 
 
