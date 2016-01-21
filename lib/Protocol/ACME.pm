@@ -276,50 +276,12 @@ called.
 
 =cut
 
-
-package Protocol::ACME::Exception;
-
-use Data::Dumper;
-
-# very simple stringification ... make this
-# more elaborate according to taste
-use overload ('""' => \&stringify);
-sub stringify
-{
-    my $self = shift;
-    return ref($self).' error: '.Dumper $self;
-}
-
-sub new
-{
-  my $class = shift;
-
-  my $error = shift;
-  my $self = { status => 0, detail => "", type => "unknown" };
-
-  if ( ref $error eq "HASH" )
-  {
-    @$self{keys %$error} = values %$error;
-  }
-  elsif ( ref $error )
-  {
-    $self->{detail} = "double error: bad arg passed to exception constructor";
-  }
-  else
-  {
-    $self->{detail} = $error;
-  }
-
-  bless $self, $class;
-
-  return $self;
-}
-
 package Protocol::ACME;
 
 use strict;
 use warnings;
 
+use Protocol::ACME::Exception;
 use Protocol::ACME::Utils;
 
 use Crypt::Format;
