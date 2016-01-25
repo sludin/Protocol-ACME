@@ -814,7 +814,7 @@ sub sign
 
   if ( $resp->{status} != 201 )
   {
-    _throw( @{ $self->{content} } );
+    _throw( %{_decode_json($resp->{content}) } );
   }
 
   my $cert = $resp->{content};
