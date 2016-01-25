@@ -114,7 +114,16 @@ sub handle
   my $fingerprint   = shift;
 
   # TODO: put the 'well known path' in a global variable somewhere
-  my $filename = "$self->{www_root}/.well-known/acme-challenge/$challenge";
+  if (not -d $self->{www_root}){
+      carp "$self->{www_root} does not exist\n";
+  }
+  # if we are root this will make us into the correct user for the site
+  my ($uid,$gid) = (stat $self->{www_root})[4,5];
+  local $> = $uid;local $) = $gid;
+  umask 022;
+  my $dir = "$self->{www_root}/.well-known/acme-challenge";
+  system "mkdir","-p",$dir;
+  my $filename = "$dir/$challenge";
   my $content = "$challenge.$fingerprint";
 
   my $fh = IO::File->new( $filename, "w" );
