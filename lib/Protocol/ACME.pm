@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.09';
+our $VERSION = '0.09_1';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.09
+Version 0.09_1
 
 =head1 SYNOPSIS
 
