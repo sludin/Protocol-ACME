@@ -28,17 +28,13 @@ Version 0.09
                                  );
 
    $acme->directory();
-
    $acme->register();
-
    $acme->accept_tos();
 
    for my $domain ( @names )
    {
      $acme->authz( $domain );
-
      $acme->handle_challenge( $challenges->{$domain} );
-
      $acme->check_challenge();
    }
 
@@ -48,8 +44,8 @@ Version 0.09
  {
    die if !UNIVERSAL::isa($@, 'Protocol::ACME::Exception');
    die "Error occured: Status: $@->{status},
-                         Detail: $@->{detail},
-                         Type: $@->{type}\n";
+                       Detail: $@->{detail},
+                       Type:   $@->{type}\n";
  }
  else
  {
@@ -250,6 +246,10 @@ try and determine what the format it.
 
 On success C<Protocol::ACME> will return the DER encoded signed certificate.
 
+=item $cert_chain = chain()
+
+After C<sign> has been called and a cert successfully created, C<chain> will
+fetch and return the DER encoded certificate issuer.
 
 =item revoke( $certfile )
 
