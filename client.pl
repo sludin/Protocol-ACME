@@ -10,9 +10,19 @@ use Convert::X509;
 
 use Data::Dumper;
 
-my $host = "acme-staging.api.letsencrypt.org";
-#my $host = "acme-v01.api.letsencrypt.org";
+my $host = "acme-staging.api.letsencrypt.org";  # LE Staging Server
+#my $host = "acme-v01.api.letsencrypt.org";     # LE Production Server
 
+# Note: calls to the LE production server are rate limited.  Use it only
+# when you have fully debugger your script against staging
+
+# IMPORTANT: This script is not intended to be a fully functional client
+#            for handling the creation and renewal of certificates.  Its
+#            goal is to demonstrate the usage of the Protocol::ACME library.
+#            For a fully functional client built on Protocol::ACME I recommend
+#            looking at Tobias Oetiker's AcmeFetch client:
+#              https://github.com/oetiker/AcmeFetch
+#
 
 # Usage:
 #  Generate a new private key for the Let's Encrypt account. For example:
@@ -78,6 +88,7 @@ eval
 
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key        => \$data,
+                                  debug              => 1,
                                   #openssl            => "/opt/local/bin/openssl",
                                 );
 
@@ -113,12 +124,14 @@ eval
 
 
   my $buf = Protocol::ACME::_slurp( $csr_file );
-#  my $cert = $acme->sign( { Buffer => $buf, Format => "DER" } );
   my $cert = $acme->sign( $csr_file );
 
   my $fh = IO::File->new( $cert_file, "w" ) || die "Could not open cert file for write: $!";
   print $fh $cert;
   $fh->close();
+
+  my $chain = $acme->chain();
+  # Do something rational with the cert chain, like save it somewhere.
 
 };
 if ( $@ )

@@ -38,17 +38,13 @@ Version 0.09
                                  );
 
    $acme->directory();
-
    $acme->register();
-
    $acme->accept_tos();
 
    for my $domain ( @names )
    {
      $acme->authz( $domain );
-
      $acme->handle_challenge( $challenges->{$domain} );
-
      $acme->check_challenge();
    }
 
@@ -58,8 +54,8 @@ Version 0.09
  {
    die if !UNIVERSAL::isa($@, 'Protocol::ACME::Exception');
    die "Error occured: Status: $@->{status},
-                         Detail: $@->{detail},
-                         Type: $@->{type}\n";
+                       Detail: $@->{detail},
+                       Type:   $@->{type}\n";
  }
  else
  {
@@ -260,6 +256,10 @@ try and determine what the format it.
 
 On success C<Protocol::ACME> will return the DER encoded signed certificate.
 
+=item $cert_chain = chain()
+
+After C<sign> has been called and a cert successfully created, C<chain> will
+fetch and return the DER encoded certificate issuer.
 
 =item revoke( $certfile )
 
@@ -817,9 +817,36 @@ sub sign
     _throw( %{_decode_json($resp->{content}) } );
   }
 
-  my $cert = $resp->{content};
+  my $links = _link_to_hash( $resp->{headers}->{'link'} );
 
-  return $cert;
+  $self->{links}->{chain} = $links->{up} if exists $links->{up};
+  $self->{links}->{cert}  = $resp->{headers}->{location} if exists $resp->{headers}->{location};
+
+  $self->{cert} = $resp->{content};
+
+  return $self->{cert};
+}
+
+sub chain
+{
+  my $self = shift;
+
+  if ( ! exists $self->{links}->{chain} )
+  {
+    _throw( "URL for the cert chain missing.  Has sign() been called yet?" );
+  }
+
+  my $resp = $self->_request_get( $self->{links}->{chain}, 1 );
+
+  if ( $resp->{status} != 200 )
+  {
+    _throw( detail => "Error received fetching the certificate chain",
+            status => $resp->{status}  );
+  }
+
+  $self->{chain} = $resp->{content};
+
+  return $self->{chain};
 }
 
 #############################################################
@@ -829,6 +856,7 @@ sub _request_get
 {
   my $self = shift;
   my $url  = shift;
+  my $nodecode = shift || 0;
 
   my $resp = $self->{ua}->get( $url );
 
@@ -836,7 +864,10 @@ sub _request_get
   $self->{json} = $resp->{content};
 
   #Exception here should be fatal.
-  $self->{content} = _decode_json( $resp->{content} );
+  $self->{content} = undef;
+  $self->{content} = _decode_json( $resp->{content} ) unless $nodecode;
+
+  $self->{response} = $resp;
 
   return $resp;
 }
@@ -859,6 +890,7 @@ sub _request_post
   $self->{content} = undef;
   $self->{content} = _decode_json( $resp->{content} ) unless $nodecode;
 
+  $self->{response} = $resp;
 
   return $resp;
 }
@@ -891,6 +923,13 @@ sub _link_to_hash
 {
   my $arrayref = shift;
   my $links;
+
+  return {} unless $arrayref;
+
+  if ( ! ref $arrayref )
+  {
+    $arrayref = [ $arrayref ];
+  }
 
   for my $link ( @$arrayref )
   {
