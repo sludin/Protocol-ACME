@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.09_1';
+our $VERSION = '0.10';
 
 =head1 NAME
 
@@ -14,7 +14,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.09_1
+Version 0.10
 
 =head1 SYNOPSIS
 
@@ -96,6 +96,7 @@ a * are required.
    ua                      HTTP::Tiny->new()
    loglevel                error
    debug                   0
+   mailto                  undef
 
 B<host>: The API end point to connect to.  This will generally be acme-staging.api.letsencrypt.org
 or acme-v01.api.letsencrypt.org
@@ -111,6 +112,9 @@ B<ua>: An HTTP::Tiny object customized as you see fit
 B<loglevel>: Set the loglevel to one of the C<Log::Any> values.
 
 B<debug>: If set to non-zero this is a shortcut for C<loglevel => debug>
+
+B<mailto>: This should be the email address that you want associated with your account.  This is used
+my Let's Encrypt for expiration notification.
 
 =back
 
@@ -162,11 +166,21 @@ Loads the directory from the ACME host.  This call must be made first
 before any other calls to the API in order the bootstrap the API
 resource list.
 
-=item register()
+=item register( %args )
 
 Call the new-reg resource and create an account associated with the
 loaded account key.  If that key has already been registered this method
 will gracefully and silently handle that.
+
+Arguments that can be passed in:
+
+   KEY                     DEFAULT
+   -----------             --------------------
+   mailto                  undef
+
+B<mailto>: See C<new> for a desciption.  This will override the value passed to new
+if any.
+
 
 =item accept_tos()
 
@@ -329,6 +343,7 @@ sub _init
   $self->{openssl}  = $args->{openssl} if exists $args->{openssl};
   $self->{debug}    = $args->{debug}   if exists $args->{debug};
   $self->{loglevel} = exists $args->{loglevel} ? $args->{loglevel} : "error";
+  $self->{contact}->{mailto} = $args->{mailto} if exists $args->{mailto};
 
   if ( $self->{debug} )
   {
@@ -505,8 +520,22 @@ sub directory
 sub register
 {
   my $self = shift;
+  my %args = @_;
 
-  my $msg = _encode_json( { resource => 'new-reg' } );
+  my $obj = {};
+  $obj->{resource} = 'new-reg';
+
+  if ( exists $args{mailto} )
+  {
+    push @{$obj->{contact}}, $args{mailto};
+  }
+  elsif ( exists $self->{contact}->{mailto} )
+  {
+    push @{$obj->{contact}}, $self->{contact}->{mailto};
+  }
+
+  my $msg = _encode_json( $obj );
+
   my $json = $self->_create_jws( $msg );
 
   $self->{log}->debug( "Sending registration message" );
