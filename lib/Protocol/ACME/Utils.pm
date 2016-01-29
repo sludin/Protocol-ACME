@@ -3,6 +3,8 @@ package Protocol::ACME::Utils;
 use strict;
 use warnings;
 
+our $VERSION = '0.11';
+
 sub looks_like_pem
 {
   my ($str) = @_;

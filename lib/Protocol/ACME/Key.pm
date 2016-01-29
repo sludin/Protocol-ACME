@@ -5,7 +5,7 @@ package Protocol::ACME::Key;
 use strict;
 use warnings;
 
-our $VERSION = 0.01;
+our $VERSION = '0.11';
 
 use Crypt::RSA::Parse;
 

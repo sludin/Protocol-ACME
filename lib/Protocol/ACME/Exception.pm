@@ -5,6 +5,8 @@ use warnings;
 
 use Data::Dumper;
 
+our $VERSION = '0.11';
+
 # very simple stringification ... make this
 # more elaborate according to taste
 use overload ('""' => \&stringify);

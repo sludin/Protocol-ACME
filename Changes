@@ -1,5 +1,12 @@
 Revision history for Protocol-ACME
 
+0.11    Fri Jan 29
+        - Version bump to deal with a missing version in a number of files
+
+0.10    Thu Jan 28
+        - Added a 'chain' call
+        - Added the ability in set the mailto argument
+
 0.09    Tue Jan 19
         - Made the log level configurable
         - Added more tests
@@ -33,7 +40,7 @@ Revision history for Protocol-ACME
 
 0.03    Added Revoke support
 
-0.02    
+0.02    Changes lost in the mists of time
 
 0.01    Tue Dec  8 17:01:36 PST 2015
         Inital version

@@ -3,6 +3,8 @@ package Protocol::ACME::Logger;
 use strict;
 use warnings;
 
+our $VERSION = '0.11';
+
 use Log::Any;
 
 sub new {
@@ -36,6 +38,8 @@ use Log::Any::Adapter::Util ();
 use Time::HiRes qw( gettimeofday );
 
 use base qw/Log::Any::Adapter::Base/;
+
+our $VERSION = '0.11';
 
 my $trace_level;
 

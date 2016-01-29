@@ -4,7 +4,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.10
+Version 0.11
 
 =head1 SYNOPSIS
 
@@ -342,7 +342,7 @@ copy of the full license at:
 L<http://www.perlfoundation.org/artistic_license_2_0>
 
 Any use, modification, and distribution of the Standard or Modified
-Versions is governed by this Artistic License. By using, modifying or
+Version 0.11
 distributing the Package, you accept this license. Do not use, modify,
 or distribute the Package, if you do not accept this license.
 
