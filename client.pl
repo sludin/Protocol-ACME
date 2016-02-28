@@ -14,7 +14,7 @@ my $host = "acme-staging.api.letsencrypt.org";  # LE Staging Server
 #my $host = "acme-v01.api.letsencrypt.org";     # LE Production Server
 
 # Note: calls to the LE production server are rate limited.  Use it only
-# when you have fully debugger your script against staging
+# after you have fully debugged your script against staging
 
 # IMPORTANT: This script is not intended to be a fully functional client
 #            for handling the creation and renewal of certificates.  Its
@@ -94,7 +94,7 @@ eval
 
 
 
-  # The fist request of for the directory.  This provides
+  # The first request of for the directory.  This provides
   # all of the top level resources. All urls needed will come
   # from these resources, the location header, or the link
   # header(s).

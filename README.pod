@@ -92,7 +92,7 @@ B<host>: The API end point to connect to.  This will generally be acme-staging.a
 or acme-v01.api.letsencrypt.org
 
 B<account_key>: The account private key in a scalar ref or filename.  See C<$self->account_key>
-for details on this arguemtn.
+for details on this argument.
 
 B<openssl>: The path to openssl.  If this option is used a local version of the openssl binary will
 be used for crypto operations rather than C<Crypt::OpenSSL::RSA>.
