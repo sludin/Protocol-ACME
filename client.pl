@@ -94,13 +94,13 @@ eval
 
 
 
-  # The first request of for the directory.  This provides
+  # The first request is for the directory.  This provides
   # all of the top level resources. All urls needed will come
   # from these resources, the location header, or the link
   # header(s).
   $acme->directory();
 
-  # Regsiter will call the new-reg resource and create an accoutn associated
+  # Register will call the new-reg resource and create an account associated
   # with the loaded account key.  If that key has already been registered
   # this method will gracefully and silently handle that.
   $acme->register();
