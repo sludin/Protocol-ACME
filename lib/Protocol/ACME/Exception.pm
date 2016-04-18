@@ -3,8 +3,6 @@ package Protocol::ACME::Exception;
 use strict;
 use warnings;
 
-use Data::Dumper;
-
 our $VERSION = '0.11';
 
 # very simple stringification ... make this
@@ -13,7 +11,9 @@ use overload ('""' => \&stringify);
 sub stringify
 {
     my $self = shift;
-    return ref($self).' error: '.Dumper $self;
+
+    require Data::Dumper;
+    return ref($self).' error: '.Data::Dumper::Dumper($self);
 }
 
 sub new
