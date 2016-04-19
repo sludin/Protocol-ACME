@@ -4,7 +4,6 @@ use 5.007003;
 use strict;
 use warnings;
 
-use Data::Dumper;
 
 our $VERSION = '0.12';
 

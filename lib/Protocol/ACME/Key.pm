@@ -8,6 +8,7 @@ use warnings;
 our $VERSION = '0.12';
 
 use Crypt::RSA::Parse;
+use Math::BigInt ();
 
 use Protocol::ACME::Utils;
 

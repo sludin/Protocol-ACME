@@ -14,8 +14,9 @@ WriteMakefile(
     CONFIGURE_REQUIRES => {
         'ExtUtils::MakeMaker' => 0,
     },
-    BUILD_REQUIRES => {
+    TEST_REQUIRES => {
         'Test::More' => 0,
+        'Test::Exception' => 0,
     },
     META_MERGE => {
         'meta-spec' => { version => 2 },
@@ -37,7 +38,7 @@ WriteMakefile(
           'Crypt::RSA::Parse' => '0.02',
           'Crypt::OpenSSL::Bignum' => '0.06',
           'JSON' => '2.90',
-          'Digest::SHA' => '5.9.5',
+          'Digest::SHA' => '5.95',
           'HTTP::Tiny' => '0.054',
           'Test::Exception' => '0.43',
     },
