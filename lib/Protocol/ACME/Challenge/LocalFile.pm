@@ -53,6 +53,10 @@ This is intended to be called indirectly via the ACME driver class.
 C<handle> will take care of all of the conditions necessary to satisfy
 the challenge sent by Let's Encrypt.
 
+=item cleanup
+
+C<cleanup> will remove the challenge file.
+
 =back
 
 =cut
@@ -64,7 +68,7 @@ use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 use IO::File;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 sub new
 {
@@ -104,6 +108,9 @@ sub _init
       $self->{$required_arg} = $args->{$required_arg};
     }
   }
+
+  $self->{filename} = undef;
+
 }
 
 
@@ -136,7 +143,15 @@ sub handle
   print $fh $content;
   $fh->close();
 
+  $self->{filename} = $filename;
+
   return 0;
+}
+
+sub cleanup
+{
+  my $self = shift;
+  unlink $self->{filename} if defined $self->{filename};
 }
 
 =head1 AUTHOR

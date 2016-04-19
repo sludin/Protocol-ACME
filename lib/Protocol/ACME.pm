@@ -6,7 +6,7 @@ use warnings;
 
 use Data::Dumper;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 =head1 NAME
 
@@ -46,6 +46,7 @@ Version 0.11
      $acme->authz( $domain );
      $acme->handle_challenge( $challenges->{$domain} );
      $acme->check_challenge();
+     $acme->cleanup_challenge( $challenges->{$domain} );
    }
 
    my $cert = $acme->sign( $csr_file );
@@ -237,6 +238,10 @@ challenge.
 
 Called after C<handle_challenge>.  This will poll the challenge status
 resource and will return when the state changes from 'pending'.
+
+=item cleanup_challenge()
+
+Called after C<check_challenge> to remove the challenge files.
 
 =item $cert = sign( $csr_filename )
 
@@ -527,11 +532,11 @@ sub register
 
   if ( exists $args{mailto} )
   {
-    push @{$obj->{contact}}, $args{mailto};
+    push @{$obj->{contact}}, "mailto:$args{mailto}";
   }
   elsif ( exists $self->{contact}->{mailto} )
   {
-    push @{$obj->{contact}}, $self->{contact}->{mailto};
+    push @{$obj->{contact}}, "mailto:$self->{contact}->{mailto}";
   }
 
   my $msg = _encode_json( $obj );
@@ -788,6 +793,13 @@ sub check_challenge
       last;
     }
   }
+}
+
+sub cleanup_challenge
+{
+  my $self = shift;
+  my $challenge = shift;
+  return $challenge->cleanup();
 }
 
 sub sign

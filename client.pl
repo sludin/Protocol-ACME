@@ -6,7 +6,6 @@ use Protocol::ACME::Challenge::SimpleSSH;
 use Protocol::ACME::Challenge::LocalFile;
 use IO::File;
 
-use Convert::X509;
 
 use Data::Dumper;
 
@@ -65,6 +64,7 @@ my @names;
 
 if ( ! $names )
 {
+  require Convert::X509;
   @names = pull_identifiers_from_csr( $csr_file );
 }
 else
@@ -89,6 +89,7 @@ eval
   my $acme = Protocol::ACME->new( host               => $host,
                                   account_key        => \$data,
                                   debug              => 1,
+                                  mailto             => 'sludin@ludin.org'
                                   #openssl            => "/opt/local/bin/openssl",
                                 );
 
@@ -100,7 +101,7 @@ eval
   # header(s).
   $acme->directory();
 
-  # Regsiter will call the new-reg resource and create an accoutn associated
+  # Regsiter will call the new-reg resource and create an account associated
   # with the loaded account key.  If that key has already been registered
   # this method will gracefully and silently handle that.
   $acme->register();
@@ -120,6 +121,8 @@ eval
     $acme->handle_challenge( $challenges->{$domain} );
 
     $acme->check_challenge();
+
+    $acme->cleanup_challenge( $challenges->{$domain} );
   }
 
 

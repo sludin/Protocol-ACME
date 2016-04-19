@@ -55,7 +55,7 @@ use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 use IO::File;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 sub new
 {

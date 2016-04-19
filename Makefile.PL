@@ -39,6 +39,7 @@ WriteMakefile(
           'JSON' => '2.90',
           'Digest::SHA' => '5.9.5',
           'HTTP::Tiny' => '0.054',
+          'Test::Exception' => '0.43',
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },

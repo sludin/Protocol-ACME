@@ -1,5 +1,12 @@
 Revision history for Protocol-ACME
 
+0.12    Mon Apr 18
+        - Added cleanup routines to take care of removing the challenge files
+          when complete.
+        - Fixed a bug where the 'mailto' scheme was not added to the registraion
+          calls.
+        - Typos
+
 0.11    Fri Jan 29
         - Version bump to deal with a missing version in a number of files
 

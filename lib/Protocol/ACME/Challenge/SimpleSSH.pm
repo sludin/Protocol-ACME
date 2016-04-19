@@ -56,6 +56,10 @@ This is intended to be called indirectly via the ACME driver class.
 C<handle> will take care of all of the conditions necessary to satisfy
 the challenge sent by Let's Encrypt.
 
+=item cleanup
+
+C<cleanup> will remove the challenge file.
+
 =back
 
 =cut
@@ -66,7 +70,7 @@ use warnings;
 use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 
 sub new
 {
@@ -106,6 +110,8 @@ sub _init
       $self->{$required_arg} = $args->{$required_arg};
     }
   }
+
+  $self->{filename} = undef;
 }
 
 
@@ -115,10 +121,25 @@ sub handle
   my $challenge     = shift;
   my $fingerprint   = shift;
   my $dir = "$self->{www_root}/.well-known/acme-challenge";
-  my @cmd = ('ssh', '-q',  $self->{ssh_host}, "mkdir -p '$dir' && echo '$challenge.$fingerprint' > '$dir/$challenge'");
+
+  my $filename = "$dir/$challenge";
+
+  my @cmd = ('ssh', '-q',  $self->{ssh_host}, "mkdir -p '$dir' && echo '$challenge.$fingerprint' > '$filename'");
   system @cmd;
+
+  $self->{filename} = $filename;
+
   return $? == 0 ? 0 : 1;
 }
+
+sub cleanup
+{
+  my $self = shift;
+
+  my @cmd = ('ssh', '-q',  $self->{ssh_host}, "rm -f '$self->{filename}'");
+  system @cmd;
+}
+
 
 =head1 AUTHOR
 
