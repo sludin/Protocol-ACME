@@ -366,8 +366,9 @@ sub _init
 
   $self->{log} = $args->{'logger'} || do
   {
-    require Protocol::ACME::Logger;
-    Protocol::ACME::Logger->new($self->{loglevel});
+      require Log::Any::Adapter;
+      Log::Any::Adapter->set('+Protocol::ACME::Logger', log_level => $self->{loglevel});
+      Log::Any->get_logger;
   };
 
   if ( exists $args->{account_key} )
