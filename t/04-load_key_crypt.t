@@ -36,6 +36,7 @@ eval
   {
     $acme = Protocol::ACME->new( host               => $Protocol::ACME::Test::host,
                                  account_key        => \$Protocol::ACME::Test::account_key_pem,
+                                 loglevel => 'debug',
                                );
   } 'Create ACME Object';
 

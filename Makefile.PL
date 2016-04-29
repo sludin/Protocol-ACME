@@ -29,18 +29,20 @@ WriteMakefile(
          },
     },
     PREREQ_PM => {
-          'Log::Any::Adapter::Base' => '1.032',
-          'Log::Any' => '1.032',
-          'Log::Any::Adapter' => '1.032',
-          'Log::Any::Adapter::Util' => '1.032',
+                  # here the prerequisites are aligned with Debian
+                  # stable, if they exists, otherwise to stretch (and
+                  # they need backporting: libcrypt-rsa-parse-perl and
+                  # libcrypt-format-perl
+          'Log::Any' => '0.15',
+          'Log::Any::Adapter' => '0.11',
           'Crypt::Format' => '0.04',
           'Crypt::OpenSSL::RSA' => '0.28',
           'Crypt::RSA::Parse' => '0.02',
-          'Crypt::OpenSSL::Bignum' => '0.06',
-          'JSON' => '2.90',
-          'Digest::SHA' => '5.95',
-          'HTTP::Tiny' => '0.054',
-          'Test::Exception' => '0.43',
+          'Crypt::OpenSSL::Bignum' => '0.04',
+          'JSON' => '2.61',
+          'Digest::SHA' => '5.88',
+          'HTTP::Tiny' => '0.050',
+          'Test::Exception' => '0.35',
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },

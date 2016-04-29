@@ -68,7 +68,7 @@ eval
       skip "Crypt::OpenSSL::Bignum or Crypt::OpenSSL::RSA not found", 23;
     }
 
-    lives_ok { $acme = Protocol::ACME->new( host => $Protocol::ACME::Test::host ) } 'Create ACME Object';
+    lives_ok { $acme = Protocol::ACME->new( host => $Protocol::ACME::Test::host, debug => 1 ) } 'Create ACME Object';
     lives_ok { $acme->account_key( \$test_objs->{account_key}->{pem} ) } 'Load PEM Buffer';
     ok ( check_key( $acme->{key} ) );
     lives_ok { $acme->account_key( \$test_objs->{account_key}->{der} ) } 'Load DER Buffer';
@@ -105,7 +105,8 @@ eval
     skip "openssl binary not found", 24 unless $Protocol::ACME::Test::openssl;
 
     lives_ok { $acme = Protocol::ACME->new( host => $Protocol::ACME::Test::host,
-                                            openssl => $Protocol::ACME::Test::openssl ) } 'Create ACME Object - OpenSSL';
+                                            openssl => $Protocol::ACME::Test::openssl,
+                                            debug => 1 ) } 'Create ACME Object - OpenSSL';
     lives_ok { $acme->account_key( \$test_objs->{account_key}->{pem} ) } 'Load PEM Buffer - OpenSSL';
     ok ( check_key( $acme->{key} ) );
     lives_ok { $acme->account_key( \$test_objs->{account_key}->{der} ) } 'Load DER Buffer - OpenSSL';
