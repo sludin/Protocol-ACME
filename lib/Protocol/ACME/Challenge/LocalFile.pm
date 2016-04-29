@@ -126,7 +126,7 @@ sub handle
   }
   # if we are root this will make us into the correct user for the site
   my ($uid,$gid) = (stat $self->{www_root})[4,5];
-  local $> = $uid;local $) = $gid;
+  local $) = $gid;local $> = $uid;
   umask 022;
   my $dir = "$self->{www_root}/.well-known/acme-challenge";
   system "mkdir","-p",$dir;
