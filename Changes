@@ -1,10 +1,13 @@
 Revision history for Protocol-ACME
 
-0.12    Mon Apr 18
+0.12    Fri Apr 29
         - Added cleanup routines to take care of removing the challenge files
           when complete.
         - Fixed a bug where the 'mailto' scheme was not added to the registraion
           calls.
+        - Fixed bug with the order of execution of setgid and setuid
+        - Refactored logging clde
+        - Lowered dependency version 
         - Typos
 
 0.11    Fri Jan 29

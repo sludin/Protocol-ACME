@@ -124,12 +124,14 @@ sub handle
 
   my $filename = "$dir/$challenge";
 
-  my @cmd = ('ssh', '-q',  $self->{ssh_host}, "mkdir -p '$dir' && echo '$challenge.$fingerprint' > '$filename'");
+  my @cmd = ('ssh', '-q', $self->{ssh_host}, "mkdir -p '$dir' && echo '$challenge.$fingerprint' > '$filename'");
   system @cmd;
+
+  my $ret = $?;
 
   $self->{filename} = $filename;
 
-  return $? == 0 ? 0 : 1;
+  return $ret == 0 ? 0 : 1;
 }
 
 sub cleanup
