@@ -7,7 +7,7 @@ use Log::Any::Adapter;
 use base qw/Log::Any::Adapter::Base/;
 use Time::HiRes qw( gettimeofday );
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 my %LOG_LEVELS = (
                   emergency => 0,

@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 =head1 NAME
 
@@ -53,9 +53,9 @@ Version 0.11
  if ( $@ )
  {
    die if !UNIVERSAL::isa($@, 'Protocol::ACME::Exception');
-   die "Error occured: Status: $@->{status},
-                       Detail: $@->{detail},
-                       Type:   $@->{type}\n";
+   die "Error occurred: Status: $@->{status},
+                        Detail: $@->{detail},
+                        Type:   $@->{type}\n";
  }
  else
  {
@@ -186,14 +186,14 @@ if any.
 
 In order to use the Let's Encrypt service, the account needs to accept
 the Terms of Service.  This is provided in a link header in response
-to the new-reg ( or reg ) resouce call.  If the TOS have already been
+to the new-reg ( or reg ) resource call.  If the TOS have already been
 accepted as indicated by the reg structure returned by the API this
 call will be a noop.
 
 =item authz( $domain )
 
 C<authz> needs to be called for each domain ( called identifiers in
-ACME speak ) in the certifcate.  This included the domain in the subject
+ACME speak ) in the certificate.  This included the domain in the subject
 as well as the Subject Alternate Name (SAN) fields.  Each call to
 C<authz> will result in a challenge being issued from Let's Encrypt.
 These challenges need to be handled individually.

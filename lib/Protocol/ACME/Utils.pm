@@ -3,7 +3,7 @@ package Protocol::ACME::Utils;
 use strict;
 use warnings;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 sub looks_like_pem
 {
