@@ -566,7 +566,7 @@ sub register
     }
     else
     {
-      _throw( @{ $self->{content} } );
+      _throw( %{ $self->{content} } );
     }
   }
   elsif ( $resp->{status} == 201 )
@@ -580,7 +580,7 @@ sub register
   }
   else
   {
-    _throw( @{ $self->{content} } );
+    _throw( %{ $self->{content} } );
   }
 
 
@@ -660,7 +660,7 @@ sub accept_tos
   }
   else
   {
-    _throw( @{ $self->{content} } );
+    _throw( %{ $self->{content} } );
   }
 }
 
@@ -689,7 +689,7 @@ sub revoke
 
   if ( $resp->{status} != 200 )
   {
-    _throw( @{ $self->{content} } );
+    _throw( %{ $self->{content} } );
   }
 
 }
@@ -715,7 +715,7 @@ sub authz
   }
   else
   {
-    _throw( @{ $self->{content} } );
+    _throw( %{ $self->{content} } );
   }
 }
 
@@ -788,8 +788,10 @@ sub check_challenge
       sleep(2);
       $resp = $self->_request_get( $status_url );
     }
-    else
-    {
+    elsif ( $self->{content}{status} eq "invalid" ) {
+      _throw(%{ $self->{content} });
+    } 
+    else {
       last;
     }
   }
