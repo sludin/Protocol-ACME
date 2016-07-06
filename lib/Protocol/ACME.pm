@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.11
+Version 0.15
 
 =head1 SYNOPSIS
 
@@ -566,7 +566,7 @@ sub register
     }
     else
     {
-      _throw( %{ $self->{content} } );
+      _throw( @{ $self->{content} } );
     }
   }
   elsif ( $resp->{status} == 201 )
@@ -580,7 +580,7 @@ sub register
   }
   else
   {
-    _throw( %{ $self->{content} } );
+    _throw( @{ $self->{content} } );
   }
 
 
@@ -660,7 +660,7 @@ sub accept_tos
   }
   else
   {
-    _throw( %{ $self->{content} } );
+    _throw( @{ $self->{content} } );
   }
 }
 
@@ -689,7 +689,7 @@ sub revoke
 
   if ( $resp->{status} != 200 )
   {
-    _throw( %{ $self->{content} } );
+    _throw( @{ $self->{content} } );
   }
 
 }
@@ -715,7 +715,7 @@ sub authz
   }
   else
   {
-    _throw( %{ $self->{content} } );
+    _throw( @{ $self->{content} } );
   }
 }
 
@@ -788,10 +788,8 @@ sub check_challenge
       sleep(2);
       $resp = $self->_request_get( $status_url );
     }
-    elsif ( $self->{content}{status} eq "invalid" ) {
-      _throw(%{ $self->{content} });
-    } 
-    else {
+    else
+    {
       last;
     }
   }
@@ -1116,7 +1114,7 @@ copy of the full license at:
 L<http://www.perlfoundation.org/artistic_license_2_0>
 
 Any use, modification, and distribution of the Standard or Modified
-Version 0.11
+Version 0.15
 distributing the Package, you accept this license. Do not use, modify,
 or distribute the Package, if you do not accept this license.
 
