@@ -21,6 +21,10 @@ if ( ! $Protocol::ACME::Test::rsa || ! $Protocol::ACME::Test::bignum )
 {
   plan skip_all => "Crypt::OpenSSL::RSA/Bignum not present";
 }
+elsif ( $ENV{NO_NETWORK} )
+{
+  plan skip_all => "Network tests disabled (NO_NETWORK set)";
+}
 else
 {
   plan tests => $tests;

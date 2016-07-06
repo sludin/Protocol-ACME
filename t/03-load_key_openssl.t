@@ -21,6 +21,10 @@ if ( ! $Protocol::ACME::Test::openssl )
 {
   plan skip_all => "Cannot find openssl binary for testing";
 }
+elsif ( defined $ENV{NO_NETWORK} )
+{
+  plan skip_all => "Network tests disabled (NO_NETWORK set)";
+}
 else
 {
   plan tests => $tests;

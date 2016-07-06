@@ -12,9 +12,9 @@ lib/Protocol/ACME.pm
 Makefile.PL
 MANIFEST	
 README.pod
-client.pl
-maketestcerts.sh
-revoke.pl
+examples/maketestcerts.sh
+examples/client.pl
+examples/revoke.pl
 t/00-load.t
 t/01-dependency_check.t
 t/02-load_key.t

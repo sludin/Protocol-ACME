@@ -46,7 +46,8 @@ WriteMakefile(
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },
-    x_contributors => [ 'Felipe Gasper <felipe@felipegasper.com>' ],
+    x_contributors => [ 'Felipe Gasper <felipe@felipegasper.com>',
+                        'Tobias Oetiker <tobi@oetiker.ch>' ],
 );
 
 sub MY::c_o {

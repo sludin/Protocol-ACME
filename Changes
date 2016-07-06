@@ -1,5 +1,17 @@
 Revision history for Protocol-ACME
 
+0.15    Mon Jul 6
+        - Changed tests so setting NO_NETWORK environment variable
+          will skip the network tests direct to Let's Encrypt
+        - Adjusted MANIFEST so that client.pl and revoke.pl will not
+          be installed (moved to examples directory)
+
+0.14    Mon Jul 6
+        - Typos in ACME.pm POD
+
+0.13    Mon Jul 6
+        - No changes of consequence
+
 0.12    Fri Apr 29
         - Added cleanup routines to take care of removing the challenge files
           when complete.
