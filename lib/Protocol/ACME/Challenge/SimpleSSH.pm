@@ -70,7 +70,7 @@ use warnings;
 use parent qw ( Protocol::ACME::Challenge );
 use Carp;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 sub new
 {
