@@ -43,6 +43,8 @@ WriteMakefile(
           'Digest::SHA' => '5.88',
           'HTTP::Tiny' => '0.050',
           'Test::Exception' => '0.35',
+          'IO::Socket::SSL' => '1.56',
+          'Net::SSLeay' => '1.49',
     },
     dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
     clean => { FILES => 'Protocol-ACME-*' },

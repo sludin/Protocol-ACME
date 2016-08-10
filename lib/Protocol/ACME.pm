@@ -1041,7 +1041,15 @@ sub _create_jws_internal
 sub _decode_json
 {
   my $ref = shift;
-  return JSON->new->allow_nonref->decode($ref);
+
+  my $json = "";
+
+  eval
+  {
+    $json = JSON->new->allow_nonref->decode($ref);
+  };
+
+  return $json;
 }
 
 sub _encode_json
