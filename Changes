@@ -1,5 +1,9 @@
 Revision history for Protocol-ACME
 
+0.16    Wed Aug 10
+        - Catches json decode errors and bubbles them up
+        - Added the implicit SSL dependencies of HTTP::Tiny
+
 0.15    Mon Jul 6
         - Changed tests so setting NO_NETWORK environment variable
           will skip the network tests direct to Let's Encrypt
