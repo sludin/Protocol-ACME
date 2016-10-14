@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 
-our $VERSION = '0.15';
+our $VERSION = '1.01';
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ Protocol::ACME - Interface to the Let's Encrypt ACME API
 
 =head1 VERSION
 
-Version 0.15
+Version 1.01
 
 =head1 SYNOPSIS
 
@@ -419,6 +419,11 @@ sub account_key
   if ( ! ref $key )
   {
     $args{filename} = $key;
+
+    if ( ! -f $key )
+    {
+      _throw( "account_key file $key does not exist" );
+    }
   }
   elsif( ref $key eq "SCALAR" )
   {
@@ -434,13 +439,13 @@ sub account_key
     $args{buffer} = _slurp( $args{filename} );
     if ( ! $args{buffer} )
     {
-      _throw( "Could not load key from file $args{filename}: $!" );
+      _throw( "Could not load the account key from file $args{filename}: $!" );
     }
   }
 
   if ( ! $args{buffer} )
   {
-    _throw( "Either a buffer or filename must be passed" );
+    _throw( "Either an account key buffer or filename must be passed into account_key" );
   }
 
   if ( ! $args{format} )
@@ -475,12 +480,19 @@ sub account_key
       "Protocol::ACME object.  This will use a native openssl binary instead.";
     }
 
-    $key = Crypt::OpenSSL::RSA->new_private_key($keystring);
+    eval
+    {
+      $key = Crypt::OpenSSL::RSA->new_private_key($keystring);
+    };
+    if ( $@ )
+    {
+      _throw( "Error creating a key structure from the account key" );
+    }
   }
 
   if ( ! $key )
   {
-    _throw( "Could not load key into key structure" );
+    _throw( "Could not load account key into key structure" );
   }
 
   $key->use_sha256_hash();
@@ -600,7 +612,7 @@ sub recovery_key
 
 
   my $pem = _slurp( $keyfile );
-  _throw( "$keyfile: $!" ) if ! $pem;
+  _throw( "recovery_key: $keyfile: $!" ) if ! $pem;
 
   my $url = "https://acme-staging.api.letsencrypt.org/acme/reg/101834";
 
@@ -675,7 +687,7 @@ sub revoke
 
   if ( ! $cert )
   {
-    _throw("Could not load cert from $certfile: $!");
+    _throw("revoke: Could not load cert from $certfile: $!");
   }
 
 
@@ -758,7 +770,7 @@ sub handle_challenge
   }
   else
   {
-    _throw( status => 0, detail => $ret, type => "challenge_exec" );
+    _throw( status => 0, detail => "Error in handling challenge: $ret", type => "challenge_exec" );
   }
 }
 
@@ -1126,7 +1138,7 @@ copy of the full license at:
 L<http://www.perlfoundation.org/artistic_license_2_0>
 
 Any use, modification, and distribution of the Standard or Modified
-Version 0.15
+Version 1.01
 distributing the Package, you accept this license. Do not use, modify,
 or distribute the Package, if you do not accept this license.
 

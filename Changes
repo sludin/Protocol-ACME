@@ -1,5 +1,10 @@
 Revision history for Protocol-ACME
 
+1.01    Fri Oct 14
+        - Congratulations. Promoting to Version 1.00
+
+1.00    Mysteriously Skipped
+
 0.16    Wed Aug 10
         - Catches json decode errors and bubbles them up
         - Added the implicit SSL dependencies of HTTP::Tiny
