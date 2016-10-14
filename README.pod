@@ -59,9 +59,6 @@ Version 1.01
 The C<Protocol::ACME> is a class implementing an interface for the
 Let's Encrypt ACME API.
 
-NOTE: This code at this point is functional but should be considered
-'alpha' quality.
-
 The class handles the protocol details behind provisioning a Let's
 Encrypt certificate.
 
